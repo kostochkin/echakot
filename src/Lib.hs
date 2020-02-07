@@ -17,5 +17,5 @@ simpleEchoBot = do
     x <- waitMessage
     sendMessage x
 
-someFunc = forever $ runStdIO bot
+someFunc = forever $ runStdIO simpleEchoBot
 
