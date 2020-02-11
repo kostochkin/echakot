@@ -2,20 +2,21 @@ module Lib
     ( someFunc
     ) where
 
-import Transport.StdIO
-    ( runStdIO
-    , StdIO
-    , waitMessage
-    , sendMessage
+import  Messenger.Api as M
+    (Api (..)
+    )
+
+import Messenger.StdIO
+    ( runStdIOMessenger
     )
 import Control.Monad
     ( forever
     )
 
-simpleEchoBot :: StdIO ()
+simpleEchoBot :: (M.Api m) => m ()
 simpleEchoBot = do
-    x <- waitMessage
+    x <- receiveMessage
     sendMessage x
 
-someFunc = forever $ runStdIO simpleEchoBot
+someFunc = forever $ runStdIOMessenger simpleEchoBot
 
