@@ -1,4 +1,4 @@
-{-# LANGUAGE MultiParamTypeClasses, FunctionalDependencies, GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Bot.StateClass
     ( BotStateClass(..)
@@ -8,7 +8,7 @@ module Bot.StateClass
     ) where
 
 import Control.Monad.State
-import Messenger.Api as M
+import qualified Messenger.Api as M
 
 class (Monad m) => BotStateClass m where
     getRepeats :: m Int
@@ -16,11 +16,10 @@ class (Monad m) => BotStateClass m where
     setRepeats :: Int -> m ()
     setRepeats = modifyRepeats . const
 
-data BotSt = BotSt 
-    { repeats :: Int
-    }
+data BotSt = BotSt {repeats :: Int}
 
-newtype BotStateT m a = BotStateT {runBotStateT' :: (StateT BotSt m a)} deriving (Functor, Applicative, Monad, MonadTrans)
+newtype BotStateT m a = BotStateT {runBotStateT' :: (StateT BotSt m a)}
+    deriving (Functor, Applicative, Monad, MonadTrans)
  
 runBotStateT = runStateT . runBotStateT'
 
@@ -30,8 +29,8 @@ instance (Monad m) => BotStateClass (BotStateT m) where
         s <- get
         put $ s {repeats = f $ repeats s}
 
-instance Api m => M.Api (BotStateT m) where
-    sendMessage = BotStateT . lift . sendMessage
-    receiveMessage = BotStateT . lift . receiveMessage
-    showKeyboard = BotStateT . lift . showKeyboard
+instance M.Api m => M.Api (BotStateT m) where
+    sendMessage = BotStateT . lift . M.sendMessage
+    receiveMessage = BotStateT . lift . M.receiveMessage
+    showKeyboard = BotStateT . lift . M.showKeyboard
 

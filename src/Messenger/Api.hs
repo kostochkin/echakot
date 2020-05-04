@@ -18,7 +18,7 @@ class (Monad m) => Api m where
     receiveMessage :: Keyboard -> m Message
     showKeyboard :: Keyboard -> m ()
 
-newtype Keyboard = Keyboard {keys :: [Int]}
+newtype Keyboard = Keyboard {keys :: [Int]} deriving (Show)
 
 data Message = Message String | Key Int | Help | Repeat deriving (Show)
 

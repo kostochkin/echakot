@@ -1,7 +1,8 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, ScopedTypeVariables #-}
 module Messenger.StdIO
     ( StdIOMessenger
     , runStdIOMessenger
+    , runStdIOMessengerLogged
     , M.sendMessage
     , M.receiveMessage
     , M.showKeyboard
@@ -9,30 +10,33 @@ module Messenger.StdIO
     , M.tryReadKey
     ) where
 
-import Messenger.Api as M
-import Transport.StdIO as T
+import qualified Messenger.Api as M
+import qualified Transport.StdIO as Tr
+import qualified Transport.Api as T
 
-newtype StdIOMessenger a = StdIOMessenger (StdIO a) deriving (Functor, Applicative, Monad)
+newtype StdIOMessenger m a = StdIOMessenger (m a) deriving (Functor, Applicative, Monad)
 
-runStdIOMessenger (StdIOMessenger x) = T.runStdIO x
+runStdIOMessenger (StdIOMessenger x) = Tr.runStdIO x
 
-instance M.Api StdIOMessenger where
-    sendMessage x = StdIOMessenger $ T.sendMessage $ M.getMessage x
+runStdIOMessengerLogged logger (StdIOMessenger x) = Tr.runStdIO $ logger x
+
+instance (T.Api m, M.Api m) => M.Api (StdIOMessenger m) where
+    sendMessage = StdIOMessenger . T.sendMessage . M.getMessage
     receiveMessage kbd = StdIOMessenger $ fmap (parseMsg kbd) $ T.waitMessage
     showKeyboard kbd = StdIOMessenger $ showKeyboard' kbd
 
-showKeyboard' ::  M.Keyboard -> StdIO ()
+showKeyboard' ::  forall m. (T.Api m, Monad m) => M.Keyboard -> m ()
 showKeyboard' = mapM_ sendMessage . M.keys where
     sendMessage = T.sendMessage . ("\\repeat " ++) . show
 
-parseMsg :: Keyboard -> String -> Message
+parseMsg :: M.Keyboard -> String -> M.Message
 parseMsg = M.parseMessage M.Message tryReadCommand
 
-tryReadCommand :: Keyboard -> String -> Maybe Message
+tryReadCommand :: M.Keyboard -> String -> Maybe M.Message
 tryReadCommand kbd cmd = 
     case break (== ' ') cmd of
-        ("\\repeat", [])    -> Just Repeat
+        ("\\repeat", [])    -> Just M.Repeat
         ("\\repeat", xs)    -> M.tryReadKey kbd xs
-        ("\\help", [])      -> Just Help
+        ("\\help", [])      -> Just M.Help
         _                   -> Nothing
 
