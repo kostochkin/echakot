@@ -1,4 +1,4 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving, ScopedTypeVariables #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Messenger.StdIO
     ( StdIOMessenger
     , runStdIOMessenger
@@ -25,7 +25,12 @@ instance (T.Api m, M.Api m) => M.Api (StdIOMessenger m) where
     receiveMessage kbd = StdIOMessenger $ fmap (parseMsg kbd) $ T.waitMessage
     showKeyboard kbd = StdIOMessenger $ showKeyboard' kbd
 
-showKeyboard' ::  forall m. (T.Api m, Monad m) => M.Keyboard -> m ()
+instance (T.Api m) => T.Api (StdIOMessenger m) where
+    sendMessage = StdIOMessenger . T.sendMessage
+    waitMessage = StdIOMessenger $ T.waitMessage
+
+
+showKeyboard' ::  (T.Api m, Monad m) => M.Keyboard -> m ()
 showKeyboard' = mapM_ sendMessage . M.keys where
     sendMessage = T.sendMessage . ("\\repeat " ++) . show
 
