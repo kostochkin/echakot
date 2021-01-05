@@ -1,4 +1,4 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE DeriveFunctor #-}
 
 module Lib
     ( someFunc
@@ -10,114 +10,46 @@ import Control.Monad.IO.Class
 import Control.Monad.State
 import Control.Monad.Free
 
+data Action i = Echo | Help | TellRepeat | ModifyRepeat i deriving Show
 
--- class (Monad m) => Messenger m where
---     readMessages :: m String
---     sendMessage :: String -> m String
--- 
--- echo :: (Messenger m) => String -> m String
--- echo = sendMessage
--- 
--- bot :: Messenger m => m String
--- bot = readMessages >>= echo 
+data BotApiF b i a = GetMessage (b -> a)
+                   | GetCurrentRepeats (i -> a)
+                   | ShowHelp a
+                   | SendMessage b a 
+                   | SelectAction b (Action i -> a)
+                   | TellCurrentRepeats a
+                   | ShowKeyboard a
+                   | SetRepeats i a deriving (Functor)
 
--- newtype ListState a = ListState (StateT ([String], Integer) [] a) deriving (Functor, Applicative, Monad)
--- 
--- 
--- instance Messenger ListState where
---     readMessages = 
---         ListState $ do
---             (ms, n) <- get
---             put ([], n)
---             return $ head ms
---     sendMessage = undefined
--- 
--- 
--- 
---data MessageStream a = MessageStream { message :: a,
---                                       stream  :: MessageStream a}
---
---instance Show a => Show (MessageStream a) where
---    show x = "MessageStream { message = " ++ show (message x) ++", stream = ... }"
---
---instance Functor MessageStream where
---    fmap f m = MessageStream { message = f $ message m, stream = fmap f $ stream m }
---
---instance Applicative MessageStream where
---    pure x = MessageStream { message = x, stream = pure x}
---    f <*> x = MessageStream { message = message f (message x), stream = stream f <*> stream x }
---
---instance Monad MessageStream where
---    return = pure
---    x >>= k = msInterleave (k $ message x) (stream x >>= k)
---
---msInterleave :: MessageStream a -> MessageStream a -> MessageStream a
---msInterleave s1 s2 = MessageStream { message = message s1,
---                                     stream = interleaved } where
---    interleaved = MessageStream { message = message s2,
---                                  stream = msInterleave (stream s1) (stream s2) }
---
---
---msFromList [] = error "Empty stream"
---msFromList l = helper l where
---    helper [x] = MessageStream { message = x, stream = helper l }
---    helper (x:xs) = MessageStream {message = x, stream = helper xs}
---
---msToList :: MessageStream a -> [a]
---msToList m = message m : msToList (stream m)
---
---msTake :: Int -> MessageStream a -> [a]
---msTake n = take n . msToList
---
---data Transport m a b = Transport { getMessage :: m a, sendMessage :: b -> m () }
---
---data Messenger m a b = Messenger {
---        transport :: Transport m a b,
---        makeEcho :: a -> m b
---    }
---
---stdioTransport :: Transport IO String String
---stdioTransport = Transport { getMessage = getLine, sendMessage = putStrLn }
---
---ioMessenger :: Messenger IO String String
---ioMessenger = Messenger { transport = stdioTransport, makeEcho = return }
---
---echoBot :: (Monad m) => Messenger m a b -> m ()
---echoBot m = do
---    a <- getMessage $ transport m
---    b <- makeEcho m a
---    sendMessage (transport m) b
+type BotApi b i = Free (BotApiF b i)
 
-data Action = Echo | Help | TellRepeat | ModifyRepeat Int deriving Show
-
-data BotApiF b a = GetMessage (b -> a)
-                 | SendMessage b a 
-                 | SelectAction b (Action -> a)
-
-instance (Show b) => Show (BotApiF b a) where
-    show (GetMessage _) = "Getting message ..."
-    show (SendMessage x a) = "Sending message " ++ show x
-    show (SelectAction x a) = "Selecting action for message " ++ show x
-    
-
-type BotApi b = Free (BotApiF b)
-
-instance Functor (BotApiF b) where
-    fmap f (GetMessage k) = GetMessage $ f . k
-    fmap f (SendMessage b x) = SendMessage b $ f x
-    fmap f (SelectAction b k) = SelectAction b $ f . k
-
-
-sendMessage :: b -> BotApi b ()
+sendMessage :: b -> BotApi b i ()
 sendMessage b = liftF $ SendMessage b ()
 
-getMessage :: BotApi b b
+getMessage :: BotApi b i b
 getMessage = liftF $ GetMessage id 
 
-selectAction :: b -> BotApi b Action
+selectAction :: b -> BotApi b i (Action i)
 selectAction b = liftF $ SelectAction b id
 
-strToAction :: String -> Action
+showKeyboard :: BotApi b i ()
+showKeyboard = liftF $ ShowKeyboard ()
+
+setRepeats :: i -> BotApi b i ()
+setRepeats i = liftF $ SetRepeats i ()
+
+tellCurrentRepeats :: BotApi b i ()
+tellCurrentRepeats = liftF $ TellCurrentRepeats ()
+
+getCurrentRepeats :: BotApi b i i
+getCurrentRepeats = liftF $ GetCurrentRepeats id
+
+
+showHelp :: BotApi b i ()
+showHelp = liftF $ ShowHelp ()
+
+
+strToAction :: (Read i) => String -> Action i
 strToAction s = case words s of
                     ["/help"]       -> Help
                     ["/repeat"]     -> TellRepeat
@@ -129,39 +61,57 @@ strToAction s = case words s of
 
 
 
-listBotApi :: Show r => BotApi String r -> [String] -> [String]
+listBotApi :: (Read i, Show i) => BotApi String i () -> (i, [String]) -> [String]
 listBotApi (Pure x) xs = []
-listBotApi (Free a@(SendMessage str t)) xs = show a : listBotApi t xs
-listBotApi (Free (GetMessage f)) [] = []
-listBotApi (Free a@(GetMessage f)) (x:xs) = (show a ++ x) : listBotApi (f x) xs
-listBotApi (Free a@(SelectAction b f)) xs = show a : listBotApi (f (strToAction b)) xs
+listBotApi (Free f) xs = free f xs where
+    free a@(SendMessage str f) s           = str : listBotApi f s
+    free (GetMessage _) (_, [])            = []
+    free a@(GetMessage f) (i,(x:xs))       = listBotApi (f x) (i, xs)
+    free a@(SelectAction b f) s            = listBotApi (f (strToAction b)) s
+    free a@(ShowKeyboard f) s              = "keyboard" : listBotApi f s
+    free a@(SetRepeats i f) (_, xs)        = listBotApi f (i, xs)
+    free a@(GetCurrentRepeats f) s@(i, xs) = listBotApi (f i) s
+    free a@(TellCurrentRepeats f) s@(i,_)  = show i : listBotApi f s
+    free a@(ShowHelp f) s                  = "help" : listBotApi f s
 
-stdioBotApi :: BotApi String () -> IO ()
+
+
+stdioBotApi :: BotApi String Int () -> IO ()
 stdioBotApi (Pure x) = return ()
-stdioBotApi (Free a@(SendMessage str t)) = putStrLn str >> stdioBotApi t
-stdioBotApi (Free a@(GetMessage f)) = getLine >>= stdioBotApi . f
-stdioBotApi (Free a@(SelectAction str f)) = return (strToAction str) >>= stdioBotApi . f 
+stdioBotApi (Free f) = free f where
+    free a@(SendMessage str t)    = putStrLn str >> stdioBotApi t
+    free a@(GetMessage f)         = getLine >>= stdioBotApi . f
+    free a@(SelectAction str f)   = return (strToAction str) >>= stdioBotApi . f 
+    free a@(ShowKeyboard f)       = putStrLn "Reserverd for keyboard" >> stdioBotApi f
+    free a@(SetRepeats i f)       = putStrLn "Just imitation!" >> stdioBotApi f
+    free a@(GetCurrentRepeats f)  = stdioBotApi (f 1)
+    free a@(TellCurrentRepeats f) = print 1 >> stdioBotApi f
+    free a@(ShowHelp f)           = print "Reserved for help" >> stdioBotApi f
 
 
-
-bot1 :: BotApi String ()
-bot1 = do
-    a <- getMessage
-    c <- selectAction a
-    case c of
-        Help           -> sendMessage "This is help"
-        TellRepeat     -> sendMessage "Keyboard"
-        ModifyRepeat i -> sendMessage $ "Modified to " ++ show i
-        Echo           -> sendMessage a
+botStep :: BotApi String Int ()
+botStep = do
+    m <- getMessage
+    a <- selectAction m
+    botAction a m
 
 
+botAction :: Action Int -> String -> BotApi String Int ()
+botAction Help             = const $ showHelp
+botAction TellRepeat       = const $ tellCurrentRepeats >> showKeyboard
+botAction (ModifyRepeat i) = const $ setRepeats i
+botAction Echo             = \m -> do
+    i <- getCurrentRepeats
+    replicateM i (sendMessage m)
+    return ()
 
-bot2 :: BotApi String ()
-bot2 = forever bot1
+
+botForever :: BotApi String Int ()
+botForever = forever botStep
 
 someFunc :: IO ()
 someFunc = do
-    print $ listBotApi bot2 ["/help", "12234", "/repeat", "89890", "/repeat 5", "18989"]
-    stdioBotApi bot2
+    print $ listBotApi botForever (1, ["/help", "111", "/repeat", "222", "/repeat 2", "/repeat", "333", "/repeat 5", "444", "/repeat -1", "4321"])
+    stdioBotApi botForever
     return ()
 
