@@ -1,5 +1,3 @@
-{-# LANGUAGE DeriveFunctor #-}
-
 module Lib
     ( someFunc
     ) where
@@ -10,77 +8,11 @@ import Control.Monad.IO.Class
 import Control.Monad.State
 import Control.Monad.Free
 import Control.Concurrent.MVar
+import Log
+import Bot.Api
+import Bot.FsdEcho
+import qualified Interpreters.List as IL
 
-data LogLevel = None | Debug | Error deriving (Eq, Ord, Show)
-
-class Loggable a where
-    tryLog   :: a -> Maybe String
-    logLevel :: LogLevel -> a -> Maybe String
-    logDebug :: a -> Maybe String
-    logError :: a -> Maybe String
-    logLevel l a = fmap (("[" ++ show l ++ "] ") ++) $ tryLog a
-    logDebug = logLevel Debug
-    logError = logLevel Error
-
-data Action i = Echo | Help | TellRepeat | ModifyRepeat i deriving Show
-
-
-data BotApiF b i a = GetMessage (b -> a)
-                   | GetCurrentRepeats (i -> a)
-                   | ShowHelp a
-                   | EchoMessage b a 
-                   | SelectAction b (Action i -> a)
-                   | TellCurrentRepeats a
-                   | ShowKeyboard a
-                   | ApiLog LogLevel String a
-                   | SetRepeats i a deriving (Functor)
-
-instance (Show b, Show i) => Loggable (BotApiF b i a) where
-    tryLog (ApiLog _ _ _) = Nothing
-    tryLog f              = Just $ fmtApi f
-
-
-fmtApi :: (Show b, Show i) => BotApiF b i a -> String
-fmtApi = log where
-    log (GetMessage _)         = "Wait for a message ... "
-    log (GetCurrentRepeats _ ) = "Getting current repeats"
-    log (ShowHelp _)           = "Showing help"
-    log (EchoMessage b _)      = "Echoing the message " ++ show b
-    log (SelectAction b _)     = "Selecting action for message" ++ show b
-    log (TellCurrentRepeats _) = "Telling current repeats"
-    log (ShowKeyboard _)       = "Showing keyboard"
-    log (SetRepeats i _)       = "Setting repeats to " ++ show i
-
-
-type BotApi b i = Free (BotApiF b i)
-
-echoMessage :: b -> BotApi b i ()
-echoMessage b = liftF $ EchoMessage b ()
-
-getMessage :: BotApi b i b
-getMessage = liftF $ GetMessage id 
-
-selectAction :: b -> BotApi b i (Action i)
-selectAction b = liftF $ SelectAction b id
-
-showKeyboard :: BotApi b i ()
-showKeyboard = liftF $ ShowKeyboard ()
-
-setRepeats :: i -> BotApi b i ()
-setRepeats i = liftF $ SetRepeats i ()
-
-tellCurrentRepeats :: BotApi b i ()
-tellCurrentRepeats = liftF $ TellCurrentRepeats ()
-
-getCurrentRepeats :: BotApi b i i
-getCurrentRepeats = liftF $ GetCurrentRepeats id
-
-apiLog :: LogLevel -> String -> BotApi b i ()
-apiLog l m = liftF $ ApiLog l ("[Bot] " ++ m) ()
-
-
-showHelp :: BotApi b i ()
-showHelp = liftF $ ShowHelp ()
 
 
 strToAction :: (Read i, Eq i) => String -> [i] -> Action i
@@ -92,24 +24,6 @@ strToAction s k = case words s of
     where
         try [(x, "")] | x `elem` k = Just x
         try _                      = Nothing
-
-
-
-listBotApi :: (Read i, Show i, Eq i) => BotApi String i () -> (i, [String]) -> [i] -> [String]
-listBotApi (Pure x) xs k = []
-listBotApi (Free f) xs k = free f xs where
-    free a@(EchoMessage str f) s           = str : listBotApi f s k
-    free (GetMessage _) (_, [])            = []
-    free a@(GetMessage f) (i,(x:xs))       = listBotApi (f x) (i, xs) k
-    free a@(SelectAction b f) s            = listBotApi (f (strToAction b k)) s k
-    free a@(ShowKeyboard f) s              = "keyboard" : listBotApi f s k
-    free a@(SetRepeats i f) (_, xs)        = listBotApi f (i, xs) k
-    free a@(GetCurrentRepeats f) s@(i, xs) = listBotApi (f i) s k
-    free a@(TellCurrentRepeats f) s@(i,_)  = show i : listBotApi f s k
-    free a@(ShowHelp f) s                  = "help" : listBotApi f s k
-    free a@(ApiLog _ _ f) s              = listBotApi f s k
-
-
 
 ioBotApi :: IOMessenger a => a -> BotApi String Int () -> IO ()
 ioBotApi _ (Pure x) = return ()
@@ -126,6 +40,8 @@ ioBotApi a (Free f) = free f where
     free (TellCurrentRepeats f) = messengerRepeats a () >>= (putStrLn . ("Current: " ++) . show) >> ioBotApi a f
     free (ShowHelp f)           = print (helpString a) >> ioBotApi a f
     free (ApiLog l m f)         = putStrLn ("[" ++ show l ++ "] " ++ m) >> ioBotApi a f
+
+
 
 class IOMessenger a where
     newMessenger     :: MonadIO m => Int -> [Int] -> String -> m a
@@ -157,18 +73,6 @@ instance IOMessenger StdioMessenger where
     keyboardValues       = M.keys  . stdioKeyboard
 
 
-botStep :: BotApi String Int ()
-botStep = do
-    m <- getMessage
-    a <- selectAction m
-    botAction a m
-
-
-botAction :: Action Int -> String -> BotApi String Int ()
-botAction Help             = const $ showHelp
-botAction TellRepeat       = const $ tellCurrentRepeats >> showKeyboard
-botAction (ModifyRepeat i) = const $ setRepeats i
-botAction Echo             = \m -> getCurrentRepeats >>= flip replicateM (echoMessage m) >> return ()
 
 
 debugBotApi :: BotApi String Int () -> BotApi String Int ()
@@ -191,7 +95,7 @@ debugBotApi f@(Free b) = maybe f debug (tryLog b) where
 
 someFunc :: IO ()
 someFunc = do
-    print $ listBotApi (forever botStep) (1, ["/help", "111", "/repeat", "222", "/repeat 2", "/repeat", "333", "/repeat 3", "444", "/repeat -1", "555", "/repeat 10", "666"]) [1 .. 5] == ["help", "111", "1", "keyboard", "222", "2", "keyboard", "333", "333", "444", "444", "444", "/repeat -1", "/repeat -1", "/repeat -1", "555", "555", "555", "/repeat 10", "/repeat 10", "/repeat 10", "666", "666", "666"]
+    print $ IL.interpret (forever botStep) (1, ["/help", "111", "/repeat", "222", "/repeat 2", "/repeat", "333", "/repeat 3", "444", "/repeat -1", "555", "/repeat 10", "666"]) [1 .. 5] == ["help", "111", "1", "keyboard", "222", "2", "keyboard", "333", "333", "444", "444", "444", "/repeat -1", "/repeat -1", "/repeat -1", "555", "555", "555", "/repeat 10", "/repeat 10", "/repeat 10", "666", "666", "666"]
     s <- newStdioMessenger 1 [1..5] "There is a useless help message" 
     ioBotApi s (forever (debugBotApi botStep))
     return ()
