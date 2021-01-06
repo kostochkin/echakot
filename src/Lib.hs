@@ -11,7 +11,19 @@ import Control.Monad.State
 import Control.Monad.Free
 import Control.Concurrent.MVar
 
+data LogLevel = None | Debug | Error deriving (Eq, Ord, Show)
+
+class Loggable a where
+    tryLog   :: a -> Maybe String
+    logLevel :: LogLevel -> a -> Maybe String
+    logDebug :: a -> Maybe String
+    logError :: a -> Maybe String
+    logLevel l a = fmap (("[" ++ show l ++ "] ") ++) $ tryLog a
+    logDebug = logLevel Debug
+    logError = logLevel Error
+
 data Action i = Echo | Help | TellRepeat | ModifyRepeat i deriving Show
+
 
 data BotApiF b i a = GetMessage (b -> a)
                    | GetCurrentRepeats (i -> a)
@@ -20,12 +32,30 @@ data BotApiF b i a = GetMessage (b -> a)
                    | SelectAction b (Action i -> a)
                    | TellCurrentRepeats a
                    | ShowKeyboard a
+                   | ApiLog LogLevel String a
                    | SetRepeats i a deriving (Functor)
+
+instance (Show b, Show i) => Loggable (BotApiF b i a) where
+    tryLog (ApiLog _ _ _) = Nothing
+    tryLog f              = Just $ fmtApi f
+
+
+fmtApi :: (Show b, Show i) => BotApiF b i a -> String
+fmtApi = log where
+    log (GetMessage _)         = "Wait for a message ... "
+    log (GetCurrentRepeats _ ) = "Getting current repeats"
+    log (ShowHelp _)           = "Showing help"
+    log (EchoMessage b _)      = "Echoing the message " ++ show b
+    log (SelectAction b _)     = "Selecting action for message" ++ show b
+    log (TellCurrentRepeats _) = "Telling current repeats"
+    log (ShowKeyboard _)       = "Showing keyboard"
+    log (SetRepeats i _)       = "Setting repeats to " ++ show i
+
 
 type BotApi b i = Free (BotApiF b i)
 
-sendMessage :: b -> BotApi b i ()
-sendMessage b = liftF $ EchoMessage b ()
+echoMessage :: b -> BotApi b i ()
+echoMessage b = liftF $ EchoMessage b ()
 
 getMessage :: BotApi b i b
 getMessage = liftF $ GetMessage id 
@@ -44,6 +74,9 @@ tellCurrentRepeats = liftF $ TellCurrentRepeats ()
 
 getCurrentRepeats :: BotApi b i i
 getCurrentRepeats = liftF $ GetCurrentRepeats id
+
+apiLog :: LogLevel -> String -> BotApi b i ()
+apiLog l m = liftF $ ApiLog l ("[Bot] " ++ m) ()
 
 
 showHelp :: BotApi b i ()
@@ -74,6 +107,7 @@ listBotApi (Free f) xs k = free f xs where
     free a@(GetCurrentRepeats f) s@(i, xs) = listBotApi (f i) s k
     free a@(TellCurrentRepeats f) s@(i,_)  = show i : listBotApi f s k
     free a@(ShowHelp f) s                  = "help" : listBotApi f s k
+    free a@(ApiLog _ _ f) s              = listBotApi f s k
 
 
 
@@ -91,10 +125,10 @@ ioBotApi a (Free f) = free f where
     free (GetCurrentRepeats f)  = messengerRepeats a () >>= ioBotApi a . f
     free (TellCurrentRepeats f) = messengerRepeats a () >>= (putStrLn . ("Current: " ++) . show) >> ioBotApi a f
     free (ShowHelp f)           = print (helpString a) >> ioBotApi a f
-
+    free (ApiLog l m f)         = putStrLn ("[" ++ show l ++ "] " ++ m) >> ioBotApi a f
 
 class IOMessenger a where
-    newMessenger     :: MonadIO m => Int -> M.Map Int String -> String -> m a
+    newMessenger     :: MonadIO m => Int -> [Int] -> String -> m a
     messengerRepeats :: MonadIO m => a -> id -> m Int
     modifyRepeats    :: MonadIO m => a -> id -> Int -> m ()
     helpString       :: a -> String
@@ -108,10 +142,11 @@ data StdioMessenger = StdioMessenger {
         stdioKeyboard :: M.Map Int String
     }
 
-newStdioMessenger :: Int -> M.Map Int String -> String -> IO StdioMessenger
+newStdioMessenger :: Int -> [Int] -> String -> IO StdioMessenger
 newStdioMessenger i k h = do
         r <- newMVar i
-        return $ StdioMessenger { stdioRepeats = r, stdioHelpString = h, stdioKeyboard = k }
+        let kbd = M.fromList [(x, show x) | x <- k]
+        return $ StdioMessenger { stdioRepeats = r, stdioHelpString = h, stdioKeyboard = kbd }
    
 instance IOMessenger StdioMessenger where 
     newMessenger i k h   = liftIO $ newStdioMessenger i k h
@@ -133,16 +168,31 @@ botAction :: Action Int -> String -> BotApi String Int ()
 botAction Help             = const $ showHelp
 botAction TellRepeat       = const $ tellCurrentRepeats >> showKeyboard
 botAction (ModifyRepeat i) = const $ setRepeats i
-botAction Echo             = \m -> getCurrentRepeats >>= flip replicateM (sendMessage m) >> return ()
+botAction Echo             = \m -> getCurrentRepeats >>= flip replicateM (echoMessage m) >> return ()
 
 
-botForever :: BotApi String Int ()
-botForever = forever botStep
+debugBotApi :: BotApi String Int () -> BotApi String Int ()
+debugBotApi f@(Pure x)   = apiLog Debug ("Step finished: " ++ show x) >> f
+debugBotApi f@(Free b) = maybe f debug (tryLog b) where
+    debug x = apiLog Debug x >> free b
+    free (EchoMessage str g)    = echoMessage str >> debugBotApi g
+    free (GetMessage g)         = getMessage >>= gotValue "message" >>= debugBotApi . g 
+    free (SelectAction str g)   = selectAction str >>= gotValue "action" >>= debugBotApi . g
+    free (ShowKeyboard g)       = showKeyboard >> debugBotApi g
+    free (SetRepeats i g)       = setRepeats i >> debugBotApi g
+    free (GetCurrentRepeats g)  = getCurrentRepeats >>= gotValue "repeats" >>= debugBotApi . g
+    free (TellCurrentRepeats g) = tellCurrentRepeats >> debugBotApi g
+    free (ShowHelp g)           = showHelp >> debugBotApi g
+    free (ApiLog _ _ g)         = debugBotApi g
+    gotValue s x = do
+        apiLog Debug ("Got " ++ s ++ ": " ++ show x)
+        return x
+    
 
 someFunc :: IO ()
 someFunc = do
-    print $ listBotApi botForever (1, ["/help", "111", "/repeat", "222", "/repeat 2", "/repeat", "333", "/repeat 3", "444", "/repeat -1", "555", "/repeat 10", "666"]) [1,2,3,4,5] == ["help", "111", "1", "keyboard", "222", "2", "keyboard", "333", "333", "444", "444", "444", "/repeat -1", "/repeat -1", "/repeat -1", "555", "555", "555", "/repeat 10", "/repeat 10", "/repeat 10", "666", "666", "666"]
-    s <- newStdioMessenger 1 (M.fromList [(x, show x) | x <- [1..5]]) "There is a useless help message" 
-    ioBotApi s botForever
+    print $ listBotApi (forever botStep) (1, ["/help", "111", "/repeat", "222", "/repeat 2", "/repeat", "333", "/repeat 3", "444", "/repeat -1", "555", "/repeat 10", "666"]) [1 .. 5] == ["help", "111", "1", "keyboard", "222", "2", "keyboard", "333", "333", "444", "444", "444", "/repeat -1", "/repeat -1", "/repeat -1", "555", "555", "555", "/repeat 10", "/repeat 10", "/repeat 10", "666", "666", "666"]
+    s <- newStdioMessenger 1 [1..5] "There is a useless help message" 
+    ioBotApi s (forever (debugBotApi botStep))
     return ()
 
