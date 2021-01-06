@@ -22,15 +22,15 @@ instance (Show b, Show i) => Loggable (BotApiF b i a) where
     tryLog f              = Just $ fmtApi f
 
 fmtApi :: (Show b, Show i) => BotApiF b i a -> String
-fmtApi = log where
-    log (GetMessage _)         = "Wait for a message ... "
-    log (GetCurrentRepeats _ ) = "Getting current repeats"
-    log (ShowHelp _)           = "Showing help"
-    log (EchoMessage b _)      = "Echoing the message " ++ show b
-    log (SelectAction b _)     = "Selecting action for message " ++ show b
-    log (TellCurrentRepeats _) = "Telling current repeats"
-    log (ShowKeyboard _)       = "Showing keyboard"
-    log (SetRepeats i _)       = "Setting repeats to " ++ show i
+fmtApi (GetMessage _)         = "Wait for a message ... "
+fmtApi (GetCurrentRepeats _ ) = "Getting current repeats"
+fmtApi (ShowHelp _)           = "Showing help"
+fmtApi (EchoMessage b _)      = "Echoing the message " ++ show b
+fmtApi (SelectAction b _)     = "Selecting action for message " ++ show b
+fmtApi (TellCurrentRepeats _) = "Telling current repeats"
+fmtApi (ShowKeyboard _)       = "Showing keyboard"
+fmtApi (SetRepeats i _)       = "Setting repeats to " ++ show i
+fmtApi (ApiLog _ _ _)         = ""
 
 type BotApi b i = Free (BotApiF b i)
 
