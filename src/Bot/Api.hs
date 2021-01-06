@@ -7,7 +7,7 @@ import Control.Monad.Free
 
 data Action i = Echo | Help | TellRepeat | ModifyRepeat i deriving Show
 
-data BotApiF b i a = GetMessage (b -> a)
+data BotApiF b i a = GetMessages ([b] -> a)
                    | GetCurrentRepeats (i -> a)
                    | ShowHelp a
                    | EchoMessage b a 
@@ -22,7 +22,7 @@ instance (Show b, Show i) => Loggable (BotApiF b i a) where
     tryLog f              = Just $ fmtApi f
 
 fmtApi :: (Show b, Show i) => BotApiF b i a -> String
-fmtApi (GetMessage _)         = "Wait for a message ... "
+fmtApi (GetMessages _)        = "Wait for a messages ... "
 fmtApi (GetCurrentRepeats _ ) = "Getting current repeats"
 fmtApi (ShowHelp _)           = "Showing help"
 fmtApi (EchoMessage b _)      = "Echoing the message " ++ show b
@@ -37,8 +37,8 @@ type BotApi b i = Free (BotApiF b i)
 echoMessage :: b -> BotApi b i ()
 echoMessage b = liftF $ EchoMessage b ()
 
-getMessage :: BotApi b i b
-getMessage = liftF $ GetMessage id 
+getMessages :: BotApi b i [b]
+getMessages = liftF $ GetMessages id 
 
 selectAction :: b -> BotApi b i (Action i)
 selectAction b = liftF $ SelectAction b id

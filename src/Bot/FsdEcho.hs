@@ -5,9 +5,15 @@ import Control.Monad
 
 botStep :: BotApi String Int ()
 botStep = do
-    m <- getMessage
+    ms <- getMessages
+    mapM_ procMessage ms
+    return ()
+
+procMessage :: String -> BotApi String Int ()
+procMessage m = do
     a <- selectAction m
     botAction a m
+
 
 botAction :: Action Int -> String -> BotApi String Int ()
 botAction Help             = const $ showHelp

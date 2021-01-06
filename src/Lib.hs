@@ -16,7 +16,7 @@ debugBotApi f@(Pure x)   = apiLog Debug ("Step finished: " ++ show x) >> f
 debugBotApi f@(Free b) = maybe f debug (tryLog b) where
     debug x = apiLog Debug x >> free b
     free (EchoMessage str g)    = echoMessage str >> debugBotApi g
-    free (GetMessage g)         = getMessage >>= gotValue "message" >>= debugBotApi . g 
+    free (GetMessages g)        = getMessages >>= gotValue "messages" >>= debugBotApi . g
     free (SelectAction str g)   = selectAction str >>= gotValue "action" >>= debugBotApi . g
     free (ShowKeyboard g)       = showKeyboard >> debugBotApi g
     free (SetRepeats i g)       = setRepeats i >> debugBotApi g

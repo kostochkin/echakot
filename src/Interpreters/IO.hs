@@ -11,7 +11,7 @@ interpret :: IOMessenger a => a -> BotApi String Int () -> IO ()
 interpret _ (Pure _) = return ()
 interpret a (Free bf) = free bf where
     free (EchoMessage str f)    = putStrLn str >> interpret a f
-    free (GetMessage f)         = getLine >>= interpret a . f 
+    free (GetMessages f)        = getLine >>= interpret a . f . pure
     free (SelectAction str f)   = return (strToAction str (keyboardValues a)) >>= interpret a . f 
     free (ShowKeyboard f)       = do
         putStrLn "Available commands:"

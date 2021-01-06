@@ -8,12 +8,12 @@ infixr 9 .:
 (.:) :: a -> (b -> [a]) -> b -> [a]
 x .: fxs = (x :) . fxs
 
-interpret :: (Read i, Show i, Eq i) => BotApi String i () -> (i, [String]) -> [i] -> [String]
+interpret :: (Read i, Show i, Eq i) => BotApi String i () -> (i, [[String]]) -> [i] -> [String]
 interpret (Pure _) _  _ = []
 interpret (Free bf) l k = free bf l k where
     free (EchoMessage str f) s          = str .: interpret f s
-    free (GetMessage _) (_, [])         = const []
-    free (GetMessage f) (i,(x:xs))      = interpret (f x) (i, xs)
+    free (GetMessages _) (_, [])        = const []
+    free (GetMessages f) (i,(x:xs))     = interpret (f x) (i, xs)
     free (SelectAction b f) s           = interpret (f (strToAction b k)) s
     free (ShowKeyboard f) s             = "keyboard" .: interpret f s
     free (SetRepeats i f) (_, xs)       = interpret f (i, xs)
