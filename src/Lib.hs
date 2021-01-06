@@ -2,12 +2,11 @@ module Lib
     ( someFunc
     ) where
 
-import Control.Monad.State
+import Control.Monad (forever)
 import Control.Monad.Free
 import Log
 import Bot.Api
 import Bot.FsdEcho
-import qualified Interpreters.BotApiTest as BAT
 import qualified Interpreters.IO as IIO
 
 
@@ -32,7 +31,6 @@ debugBotApi f@(Free b) = maybe f debug (tryLog b) where
 
 someFunc :: IO ()
 someFunc = do
-    print $ BAT.interpret (forever botStep) (1, ["/help", "111", "/repeat", "222", "/repeat 2", "/repeat", "333", "/repeat 3", "444", "/repeat -1", "555", "/repeat 10", "666"]) [1 .. 5] == ["help", "111", "1", "keyboard", "222", "2", "keyboard", "333", "333", "444", "444", "444", "/repeat -1", "/repeat -1", "/repeat -1", "555", "555", "555", "/repeat 10", "/repeat 10", "/repeat 10", "666", "666", "666"]
     s <- IIO.newMessenger 1 [1..5] "There is a useless help message" :: IO (IIO.StdioMessenger)
     IIO.interpret s (forever (debugBotApi botStep))
     return ()

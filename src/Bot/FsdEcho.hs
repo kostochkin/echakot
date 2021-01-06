@@ -1,4 +1,4 @@
-module Bot.FsdEcho where
+module Bot.FsdEcho (botStep) where
 
 import Bot.Api
 import Control.Monad
