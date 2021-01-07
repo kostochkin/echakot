@@ -5,8 +5,8 @@ import Language.Bot
 import Control.Monad.Free
 
 addLogging :: BotApi String Int () -> BotApi String Int ()
-addLogging f@(Pure x)   = apiLog (logInfo ("Step finished: " ++ show x)) >> f
-addLogging f@(Free b) = maybe f debug (tryLog b) where
+addLogging f@(Pure x) = apiLog (logInfo ("Step finished: " ++ show x)) >> f
+addLogging (Free b)   = maybe (free b) debug (tryLog b) where
     debug x = apiLog x >> free b
     free (EchoMessage str g)    = echoMessage str >> addLogging g
     free (GetMessages g)        = getMessages >>= gotValue "messages" >>= addLogging . g
@@ -16,7 +16,7 @@ addLogging f@(Free b) = maybe f debug (tryLog b) where
     free (GetCurrentRepeats g)  = getCurrentRepeats >>= gotValue "repeats" >>= addLogging . g
     free (TellCurrentRepeats g) = tellCurrentRepeats >> addLogging g
     free (ShowHelp g)           = showHelp >> addLogging g
-    free (ApiLog _ g)           = addLogging g
+    free (ApiLog s g)           = apiLog s >> addLogging g
     gotValue s x = do
         apiLog (logDebug ("Got " ++ s ++ ": " ++ show x))
         return x
