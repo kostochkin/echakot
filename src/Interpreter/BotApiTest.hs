@@ -1,8 +1,8 @@
-module Interpreters.BotApiTest ( interpret ) where
+module Interpreter.BotApiTest ( interpret ) where
 
-import Bot.Api
+import Language.Bot
 import Control.Monad.Free
-import Interpreters.Actions
+import Interpreter.Actions
 
 infixr 9 .:
 (.:) :: a -> (b -> [a]) -> b -> [a]

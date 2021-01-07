@@ -1,6 +1,6 @@
 module Bot.FsdEcho (botStep) where
 
-import Bot.Api
+import Language.Bot
 import Control.Monad
 
 botStep :: BotApi b Int ()

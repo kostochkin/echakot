@@ -1,6 +1,6 @@
-module Interpreters.Actions where
+module Interpreter.Actions where
 
-import Bot.Api
+import Language.Bot
 
 strToAction :: (Read i, Eq i) => String -> [i] -> Action i
 strToAction s k = case words s of

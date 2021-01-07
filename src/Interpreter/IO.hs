@@ -1,11 +1,11 @@
-module Interpreters.IO ( interpret, newMessenger, StdioMessenger ) where
+module Interpreter.IO ( interpret, newMessenger, StdioMessenger ) where
 
 import qualified Data.Map as M
 import Control.Monad.IO.Class
 import Control.Concurrent.MVar
-import Bot.Api
+import Language.Bot
 import Control.Monad.Free
-import Interpreters.Actions
+import Interpreter.Actions
 
 interpret :: IOMessenger a => a -> BotApi String Int () -> IO ()
 interpret _ (Pure _) = return ()

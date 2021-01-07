@@ -5,9 +5,9 @@ module Lib
 import Control.Monad (forever)
 import Control.Monad.Free
 import Log
-import Bot.Api
+import Language.Bot
 import Bot.FsdEcho
-import qualified Interpreters.IO as IIO
+import qualified Interpreter.IO as IIO
 
 
 

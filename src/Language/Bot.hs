@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveFunctor #-}
 
-module Bot.Api where
+module Language.Bot where
 
 import Log
 import Control.Monad.Free
@@ -15,7 +15,10 @@ data BotApiF b i a = GetMessages ([b] -> a)
                    | TellCurrentRepeats a
                    | ShowKeyboard a
                    | ApiLog LogLevel String a
-                   | SetRepeats i a deriving (Functor)
+                   | SetRepeats i a
+                   deriving (Functor)
+
+type BotApi b i = Free (BotApiF b i)
 
 instance (Show b, Show i) => Loggable (BotApiF b i a) where
     tryLog (ApiLog _ _ _) = Nothing
@@ -31,8 +34,6 @@ fmtApi (TellCurrentRepeats _) = "Telling current repeats"
 fmtApi (ShowKeyboard _)       = "Showing keyboard"
 fmtApi (SetRepeats i _)       = "Setting repeats to " ++ show i
 fmtApi (ApiLog _ _ _)         = ""
-
-type BotApi b i = Free (BotApiF b i)
 
 echoMessage :: b -> BotApi b i ()
 echoMessage b = liftF $ EchoMessage b ()
