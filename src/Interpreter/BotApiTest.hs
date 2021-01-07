@@ -20,5 +20,5 @@ interpret (Free bf) l k = free bf l k where
     free (GetCurrentRepeats f) s@(i, _) = interpret (f i) s
     free (TellCurrentRepeats f) s@(i,_) = show i .: interpret f s
     free (ShowHelp f) s                 = "help" .: interpret f s
-    free (ApiLog _ _ f) s               = interpret f s
+    free (ApiLog _ f) s                 = interpret f s
 

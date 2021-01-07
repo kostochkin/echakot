@@ -21,7 +21,7 @@ interpret a (Free bf) = free bf where
     free (GetCurrentRepeats f)  = messengerRepeats a () >>= interpret a . f
     free (TellCurrentRepeats f) = messengerRepeats a () >>= (putStrLn . ("Current: " ++) . show) >> interpret a f
     free (ShowHelp f)           = print (helpString a) >> interpret a f
-    free (ApiLog l m f)         = putStrLn ("[" ++ show l ++ "] " ++ m) >> interpret a f
+    free (ApiLog m f)           = putStrLn (show m) >> interpret a f
 
 
 class IOMessenger a where

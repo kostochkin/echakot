@@ -1,13 +1,40 @@
-module Log where
+{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
+
+module Log (
+      LogLevel
+    , LogMessage
+    , logError
+    , logInfo
+    , logDebug
+    , Stringable
+    ) where
 
 data LogLevel = None | Debug | Info | Error deriving (Eq, Ord, Show)
 
-class Loggable a where
-    tryLog   :: a -> Maybe String
-    logLevel :: LogLevel -> a -> Maybe String
-    logDebug :: a -> Maybe String
-    logError :: a -> Maybe String
-    logLevel l a = fmap (("[" ++ show l ++ "] ") ++) $ tryLog a
-    logDebug = logLevel Debug
-    logError = logLevel Error
+data LogMessage a = LogMessage {
+        level :: LogLevel,
+        body :: a
+    }
+
+class Stringable a where
+    toString :: a -> String
+
+
+instance Stringable String where
+    toString = id
+
+instance Stringable a => Show (LogMessage a) where
+    show m = "[" ++ show (level m) ++ "] " ++ toString (body m)
+
+instance Functor LogMessage where
+    fmap f a = a { body = f $ body a }
+
+logError :: a -> LogMessage a
+logError = LogMessage Error
+
+logInfo :: a -> LogMessage a
+logInfo = LogMessage Info
+
+logDebug :: a -> LogMessage a
+logDebug = LogMessage Debug
 
