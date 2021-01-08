@@ -1,34 +1,33 @@
 module Translator.BotLogger (addLogging) where
 
-import Log
+import qualified Log.Message as LM
+import qualified Log.Logger as LL
 import Language.Bot
 import Control.Monad.Free
+import Control.Monad
 
-addLogging :: BotApi String Int () -> BotApi String Int ()
-addLogging f@(Pure x) = apiLog (logInfo ("Step finished: " ++ show x)) >> f
-addLogging (Free b)   = maybe (free b) debug (tryLog b) where
-    debug x = apiLog x >> free b
-    free (EchoMessage str g)    = echoMessage str >> addLogging g
-    free (GetMessages g)        = getMessages >>= gotValue "messages" >>= addLogging . g
-    free (SelectAction str g)   = selectAction str >>= gotValue "action" >>= addLogging . g
-    free (ShowKeyboard g)       = showKeyboard >> addLogging g
-    free (SetRepeats i g)       = setRepeats i >> addLogging g
-    free (GetCurrentRepeats g)  = getCurrentRepeats >>= gotValue "repeats" >>= addLogging . g
-    free (TellCurrentRepeats g) = tellCurrentRepeats >> addLogging g
-    free (ShowHelp g)           = showHelp >> addLogging g
-    free (ApiLog s g)           = apiLog s >> addLogging g
-    gotValue s x = do
-        apiLog (logDebug ("Got " ++ s ++ ": " ++ show x))
-        return x
+addLogging :: LL.Logger -> BotApi String Int () -> BotApi String Int ()
+addLogging l f@(Pure x) = LL.maybeLog l f (apiLog >=> const f) $ LM.logInfo ("Step finished: " ++ show x)
+addLogging l (Free b)   = maybe (free b) (apiLog >=> const (free b)) (LL.maybeMessage l tryMessage b) where
+    free (EchoMessage str g)    = echoMessage str >> addLogging l g
+    free (GetMessages g)        = maybeLogValue getMessages (LM.logDebug "messages") >>= addLogging l . g
+    free (SelectAction str g)   = maybeLogValue (selectAction str) (LM.logDebug "action") >>= addLogging l . g
+    free (ShowKeyboard g)       = showKeyboard >> addLogging l g
+    free (SetRepeats i g)       = setRepeats i >> addLogging l g
+    free (GetCurrentRepeats g)  = maybeLogValue getCurrentRepeats (LM.logDebug "repeats") >>= addLogging l . g
+    free (TellCurrentRepeats g) = tellCurrentRepeats >> addLogging l g
+    free (ShowHelp g)           = showHelp >> addLogging l g
+    free (ApiLog s g)           = apiLog s >> addLogging l g
+    maybeLogValue f m = LL.maybeLogValue l f (fmap (\x y -> ("Got " ++ x ++ ": " ++ show y)) m) apiLog
 
-tryLog :: (Show b, Show i) => BotApiF b i a -> Maybe (LogMessage String)
-tryLog (ApiLog _ _)           = Nothing
-tryLog (GetMessages _)        = Just $ logInfo "Wait for messages ... "
-tryLog (GetCurrentRepeats _ ) = Just $ logDebug "Getting current repeats"
-tryLog (ShowHelp _)           = Just $ logDebug "Showing help"
-tryLog (EchoMessage b _)      = Just $ logDebug $ "Echoing the message " ++ show b
-tryLog (SelectAction b _)     = Just $ logDebug $ "Selecting action for the message " ++ show b
-tryLog (TellCurrentRepeats _) = Just $ logDebug "Telling current repeats"
-tryLog (ShowKeyboard _)       = Just $ logDebug "Showing the keyboard"
-tryLog (SetRepeats i _)       = Just $ logDebug $ "Setting repeats to " ++ show i
+tryMessage :: (Show b, Show i) => BotApiF b i a -> Maybe (LM.LogMessage String)
+tryMessage (ApiLog _ _)           = Nothing
+tryMessage (GetMessages _)        = Just $ LM.logInfo "Wait for messages ... "
+tryMessage (GetCurrentRepeats _ ) = Just $ LM.logDebug "Getting current repeats"
+tryMessage (ShowHelp _)           = Just $ LM.logDebug "Showing help"
+tryMessage (EchoMessage b _)      = Just $ LM.logDebug $ "Echoing the message " ++ show b
+tryMessage (SelectAction b _)     = Just $ LM.logDebug $ "Selecting action for the message " ++ show b
+tryMessage (TellCurrentRepeats _) = Just $ LM.logDebug "Telling current repeats"
+tryMessage (ShowKeyboard _)       = Just $ LM.logDebug "Showing the keyboard"
+tryMessage (SetRepeats i _)       = Just $ LM.logDebug $ "Setting repeats to " ++ show i
 

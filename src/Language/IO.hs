@@ -2,7 +2,7 @@
 
 module Language.IO where
 
-import Log
+import Log.Message
 import Control.Monad.Free
 
 data IOApiF b i a = GetIOLine (b -> a)
@@ -20,8 +20,8 @@ getIOLine = liftF $ GetIOLine id
 putIOLine :: b -> IOApi b i ()
 putIOLine b = liftF $ PutIOLine b ()
 
-ioLog :: (String -> LogMessage String) -> String -> IOApi b i ()
-ioLog f s = liftF $ RawLog (f ("IO: " ++ s)) ()
+ioLog :: LogMessage String -> IOApi b i ()
+ioLog m = liftF $ RawLog (("IO: " ++) <$> m) ()
 
 returnIO :: IO i -> IOApi b i i
 returnIO io = liftF $ ReturnIO io id

@@ -2,7 +2,7 @@
 
 module Language.Bot where
 
-import Log
+import Log.Message
 import Control.Monad.Free
 
 data Action i = Echo | Help | TellRepeat | ModifyRepeat i deriving Show
