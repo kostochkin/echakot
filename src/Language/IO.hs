@@ -1,9 +1,25 @@
 {-# LANGUAGE DeriveFunctor #-}
 
-module Language.IO where
+module Language.IO (
+              IOApi
+            , IOApiF (
+                  GetIOLine
+                , PutIOLine
+                , ReturnIO
+                , RunIO
+                , RawLog
+                )
+            , getIOLine
+            , putIOLine
+            , runIO
+            , returnIO
+            , rawLog
+            , ioLog
+    ) where
 
-import Log.Message
-import Control.Monad.Free
+--import Prelude hiding (log)
+import Log.Message ( LogMessage )
+import Control.Monad.Free ( Free, liftF )
 
 data IOApiF b i a = GetIOLine (b -> a)
                   | PutIOLine b a
@@ -12,7 +28,9 @@ data IOApiF b i a = GetIOLine (b -> a)
                   | RawLog (LogMessage String) a
                   deriving (Functor)
 
+
 type IOApi b i = Free (IOApiF b i)
+
 
 getIOLine :: IOApi b i b
 getIOLine = liftF $ GetIOLine id

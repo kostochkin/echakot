@@ -1,7 +1,20 @@
-module Bot.FsdEcho (botStep) where
+module Bot.FsdEcho (
+        botStep
+    ) where
 
-import Language.Bot
-import Control.Monad
+import Language.Bot (
+      Action(Help, TellRepeat, ModifyRepeat, Echo)
+    , BotApi
+    , getMessages
+    , selectAction
+    , showHelp
+    , tellCurrentRepeats
+    , showKeyboard
+    , setRepeats
+    , getCurrentRepeats
+    , echoMessage 
+    )
+import Control.Monad ( replicateM )
 
 botStep :: BotApi b Int ()
 botStep = do

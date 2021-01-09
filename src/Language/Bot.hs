@@ -1,9 +1,32 @@
 {-# LANGUAGE DeriveFunctor #-}
 
-module Language.Bot where
+module Language.Bot (
+          Action (Echo, Help, TellRepeat, ModifyRepeat)
+        , BotApi
+        , BotApiF (
+                  EchoMessage
+                , GetMessages
+                , SelectAction
+                , ShowKeyboard
+                , SetRepeats
+                , TellCurrentRepeats
+                , GetCurrentRepeats
+                , BotLog
+                , ShowHelp
+            )
+        , echoMessage
+        , getMessages
+        , selectAction
+        , showKeyboard
+        , setRepeats
+        , tellCurrentRepeats
+        , getCurrentRepeats
+        , botLog
+        , showHelp
+        ) where
 
-import Log.Message
-import Control.Monad.Free
+import Log.Message ( LogMessage )
+import Control.Monad.Free ( Free, liftF )
 
 data Action i = Echo | Help | TellRepeat | ModifyRepeat i deriving Show
 
@@ -14,7 +37,7 @@ data BotApiF b i a = GetMessages ([b] -> a)
                    | SelectAction b (Action i -> a)
                    | TellCurrentRepeats a
                    | ShowKeyboard a
-                   | ApiLog (LogMessage String) a
+                   | BotLog (LogMessage String) a
                    | SetRepeats i a
                    deriving (Functor)
 
@@ -22,7 +45,7 @@ type BotApi b i = Free (BotApiF b i)
 
 echoMessage :: b -> BotApi b i ()
 echoMessage b = liftF $ EchoMessage b ()
-
+--
 getMessages :: BotApi b i [b]
 getMessages = liftF $ GetMessages id 
 
@@ -41,8 +64,8 @@ tellCurrentRepeats = liftF $ TellCurrentRepeats ()
 getCurrentRepeats :: BotApi b i i
 getCurrentRepeats = liftF $ GetCurrentRepeats id
 
-apiLog :: LogMessage String -> BotApi b i ()
-apiLog m = liftF $ ApiLog (fmap ("Bot: " ++) m) ()
+botLog :: LogMessage String -> BotApi b i ()
+botLog m = liftF $ BotLog (fmap ("Bot: " ++) m) ()
 
 showHelp :: BotApi b i ()
 showHelp = liftF $ ShowHelp ()

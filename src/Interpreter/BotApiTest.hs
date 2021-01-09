@@ -1,8 +1,20 @@
 module Interpreter.BotApiTest ( interpret ) where
 
-import Language.Bot
-import Control.Monad.Free
-import Interpreter.Actions
+import Language.Bot (
+      BotApi
+    , BotApiF ( GetMessages
+              , SelectAction
+              , ShowHelp
+              , TellCurrentRepeats
+              , ShowKeyboard
+              , SetRepeats
+              , GetCurrentRepeats
+              , EchoMessage 
+              , BotLog
+              )
+    )
+import Control.Monad.Free ( Free( Pure, Free ) )
+import Interpreter.Actions ( strToAction )
 
 infixr 9 .:
 (.:) :: a -> (b -> [a]) -> b -> [a]
@@ -20,5 +32,5 @@ interpret (Free bf) l k = free bf l k where
     free (GetCurrentRepeats f) s@(i, _) = interpret (f i) s
     free (TellCurrentRepeats f) s@(i,_) = show i .: interpret f s
     free (ShowHelp f) s                 = "help" .: interpret f s
-    free (ApiLog _ f) s                 = interpret f s
+    free (BotLog _ f) s                 = interpret f s
 

@@ -1,36 +1,105 @@
+{-# LANGUAGE DeriveFunctor #-}
+
 module Log.Logger (
       Logger
+    , LoggerF
+    , LoggerV
     , loggerFromString
-    , checkLevel
-    , maybeLog
-    , maybeMessage
-    , maybeLogValue
+    , runLogger
+    , inlineLogInfo
+    , inlineLogError
+    , inlineLogDebug
+    , inlineLogInfoV
+    , inlineLogErrorV
+    , inlineLogDebugV
+    , (|->)
+    , (>>=*)
+    , (*>>=)
+    , (|>)
+    , (*>>)
     ) where
 
-import qualified Log.Message as M (LogLevel, defaultLogLevel, checkLevel, LogMessage)
+import Text.Read (readMaybe)
+import Log.Message (
+      LogMessage
+    , defaultLogLevel
+    , LogLevel
+    , bounceMessage
+    , messageInfo
+    , messageError
+    , messageDebug
+    )
 
-data Logger = Logger {
-    currentLogLevel :: M.LogLevel
-} deriving Show
 
-maybeLog :: Logger -> m b -> (M.LogMessage a -> m b) -> M.LogMessage a -> m b
-maybeLog l els thn m = maybe els thn (checkLevel l m)
+data Logger m a b = Logger {
+      handler :: LogMessage a -> m b
+    , currentLogLevel :: LogLevel
+} deriving (Functor)
 
-maybeLogValue :: (Monad m) => Logger -> m a -> M.LogMessage (a -> b) -> (M.LogMessage b -> m ()) -> m a
-maybeLogValue l ma lm logValue = maybe ma k' (checkLevel l lm) where
+data LoggerF m a b c = LoggerF (LogMessage (a -> b)) (Logger m b c)
+
+data LoggerV m a b = LoggerV (LogMessage a) (Logger m a b)
+
+data LoggedA m a b c =  LoggedA (m a) (LoggerF m a b c)
+
+
+infixl 9 |->
+(|->) :: LogMessage (a -> b) -> Logger m b c ->  LoggerF m a b c
+(|->) = LoggerF
+
+infixl 9 |>
+(|>) :: LogMessage a -> Logger m a b ->  LoggerV m a b
+(|>) = LoggerV
+
+infixl 2 >>=*
+(>>=*) :: (Monad m) => m a -> LoggerF m a b c -> LoggedA m a b c
+(>>=*) = LoggedA
+
+infixl 2 *>>=
+(*>>=) :: (Monad m) => LoggedA m a b d -> (a -> m c) -> m c
+(LoggedA ma (LoggerF s l)) *>>= mac = logMITM ma mac l s
+
+infixl 2 *>>
+(*>>) :: (Monad m) => LoggerV m a b -> m c -> m c
+(LoggerV s l) *>> mc = logBefore mc l s
+
+inlineLogErrorV :: (a -> b) -> Logger m b c -> LoggerF m a b c
+inlineLogErrorV f l = messageError f |-> l
+
+inlineLogInfoV :: (a -> b) -> Logger m b c -> LoggerF m a b c
+inlineLogInfoV f l = messageInfo f |-> l
+
+inlineLogDebugV :: (a -> b) -> Logger m b c -> LoggerF m a b c
+inlineLogDebugV f l = messageDebug f |-> l
+
+inlineLogError :: a -> Logger m a b ->  LoggerV m a b
+inlineLogError x l = messageError x |> l
+
+inlineLogInfo ::  a -> Logger m a b ->  LoggerV m a b
+inlineLogInfo x l = messageInfo x |> l
+
+inlineLogDebug ::  a -> Logger m a b ->  LoggerV m a b
+inlineLogDebug x l = messageDebug x |> l
+
+loggerFromString :: (LogMessage a -> m b) -> String -> Logger m a b
+loggerFromString k s = Logger k $ maybe defaultLogLevel id $ readMaybe s
+
+runLogger :: Logger m a b -> LogMessage a -> m b
+runLogger = handler
+
+logBefore :: (Monad m) => m c -> Logger m a b -> LogMessage a -> m c
+logBefore mc l lm = maybe mc k' (bounce l lm) where
     k' _ = do
-        x <- ma
-        logValue $ fmap ($ x) lm
-        return x 
+        _ <- runLogger l lm
+        mc
 
-maybeMessage :: Logger -> (b -> Maybe (M.LogMessage a)) -> b -> Maybe (M.LogMessage a)
-maybeMessage l f b = f b >>= checkLevel l
+logMITM :: (Monad m) => m a -> (a -> m c) -> Logger m b d -> LogMessage (a -> b) -> m c
+logMITM before after l lm = maybe (before >>= after) k' (bounce l lm) where
+    k' _ = do
+        x <- before
+        _ <- runLogger l $ fmap ($ x) lm
+        after x 
 
-loggerFromString :: String -> Logger
-loggerFromString s = case reads s of
-    [(x, "")] -> Logger x
-    _         -> Logger M.defaultLogLevel
-
-checkLevel :: Logger -> M.LogMessage a -> Maybe (M.LogMessage a)
-checkLevel l m = M.checkLevel (currentLogLevel l) m
+bounce :: Logger m a c -> LogMessage b -> Maybe (LogMessage b)
+bounce l m = bounceMessage (currentLogLevel l) m
 
