@@ -5,12 +5,16 @@ module Language.IO (
             , IOApiF (
                   GetIOLine
                 , PutIOLine
+                , GetState
+                , PutState
                 , ReturnIO
                 , RunIO
                 , RawLog
                 )
             , getIOLine
             , putIOLine
+            , getState
+            , putState
             , runIO
             , returnIO
             , rawLog
@@ -21,32 +25,40 @@ module Language.IO (
 import Log.Message ( LogMessage )
 import Control.Monad.Free ( Free, liftF )
 
-data IOApiF b i a = GetIOLine (b -> a)
+data IOApiF b s a = GetIOLine (b -> a)
                   | PutIOLine b a
-                  | ReturnIO (IO i) (i -> a)
+                  | GetState (s -> a)
+                  | PutState s a
+                  | ReturnIO (IO s) (s -> a)
                   | RunIO (IO ()) a
                   | RawLog (LogMessage String) a
                   deriving (Functor)
 
 
-type IOApi b i = Free (IOApiF b i)
+type IOApi b s = Free (IOApiF b s)
 
 
-getIOLine :: IOApi b i b
+getIOLine :: IOApi b s b
 getIOLine = liftF $ GetIOLine id
 
-putIOLine :: b -> IOApi b i ()
+putIOLine :: b -> IOApi b s ()
 putIOLine b = liftF $ PutIOLine b ()
 
-ioLog :: LogMessage String -> IOApi b i ()
+ioLog :: LogMessage String -> IOApi b s ()
 ioLog m = liftF $ RawLog (("IO: " ++) <$> m) ()
 
-returnIO :: IO i -> IOApi b i i
+returnIO :: IO s -> IOApi b s s
 returnIO io = liftF $ ReturnIO io id
 
-runIO :: IO () -> IOApi b i ()
+runIO :: IO () -> IOApi b s ()
 runIO io = liftF $ RunIO io ()
 
-rawLog :: LogMessage String -> IOApi b i ()
+rawLog :: LogMessage String -> IOApi b s ()
 rawLog s = liftF $ RawLog s ()
+
+getState :: IOApi b s s 
+getState = liftF $ GetState id
+
+putState :: s -> IOApi b s ()
+putState s = liftF $ PutState s ()
 

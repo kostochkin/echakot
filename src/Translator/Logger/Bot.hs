@@ -1,4 +1,4 @@
-module Translator.BotLogger (
+module Translator.Logger.Bot (
       addLogging
     , defaultLogger
     , addDefaultLogging

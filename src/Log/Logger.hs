@@ -6,6 +6,7 @@ module Log.Logger (
     , LoggerV
     , loggerFromString
     , runLogger
+    , joinLoggers
     , inlineLogInfo
     , inlineLogError
     , inlineLogDebug
@@ -18,6 +19,7 @@ module Log.Logger (
     , (|>)
     , (*>>)
     ) where
+
 
 import Text.Read (readMaybe)
 import Log.Message (
@@ -41,6 +43,13 @@ data LoggerF m a b c = LoggerF (LogMessage (a -> b)) (Logger m b c)
 data LoggerV m a b = LoggerV (LogMessage a) (Logger m a b)
 
 data LoggedA m a b c =  LoggedA (m a) (LoggerF m a b c)
+
+
+joinLoggers :: (Monad m, Monoid b) => [Logger m a b] -> Logger m a b
+joinLoggers xs = Logger { handler = \m -> handle m xs
+                        , currentLogLevel = minimum $ map currentLogLevel xs} where
+    handle _ [] = return mempty
+    handle m (l:ls) = m |> l *>> handle m ls
 
 
 infixl 9 |->

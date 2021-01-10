@@ -45,7 +45,7 @@ type BotApi b i = Free (BotApiF b i)
 
 echoMessage :: b -> BotApi b i ()
 echoMessage b = liftF $ EchoMessage b ()
---
+
 getMessages :: BotApi b i [b]
 getMessages = liftF $ GetMessages id 
 
