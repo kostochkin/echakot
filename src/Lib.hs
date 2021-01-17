@@ -18,19 +18,23 @@ import Language.Config
 import Prelude hiding (lookup, init)
 import Config
 import Interpreter.Actions
+import qualified Translator.Logger.Config as TLC
 
 
 someFunc :: IO ()
 someFunc = do
-    let Right loggrIO = dummyInterpret configApp initLoggingConfig
+    let (ioLog, Right loggrIO) = dummyInterpret configApp initLoggingConfig
+    ioLog
     loggr <- loggrIO
     let l = currentLogLevel loggr
-    case dummyInterpret configApp readAppConfig of
-        Right appIO -> do
+    case dummyInterpret configApp (TLC.addDefaultLogging l readAppConfig) of
+        (ioLog', Right appIO) -> do
+            ioLog'
             app <- appIO
             IIO.interpret (messenger app) loggr $ forever $ IOL.addDefaultLogging l $ TIO.translate app $ BL.addDefaultLogging l B.botStep
             return ()
-        Left e -> do
+        (ioLog'', Left e) -> do
+            ioLog''
             tt <- toTimeTagged
             runLogger loggr $ fmap tt $ messageError e
 

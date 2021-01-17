@@ -4,13 +4,14 @@ module Log.Message (
       LogLevel
     , LogMessage
     , messageError
+    , messageWarn
     , messageInfo
     , messageDebug
     , bounceMessage
     , defaultLogLevel
     ) where
 
-data LogLevel = None | Error | Info | Debug deriving (Eq, Ord, Show, Read)
+data LogLevel = None | Error | Warn | Info | Debug deriving (Eq, Ord, Show, Read)
 
 data LogMessage a = LogMessage {
         level :: LogLevel,
@@ -26,6 +27,9 @@ defaultLogLevel = Info
 
 messageError :: a -> LogMessage a
 messageError = LogMessage Error
+
+messageWarn :: a -> LogMessage a
+messageWarn = LogMessage Warn
 
 messageInfo :: a -> LogMessage a
 messageInfo = LogMessage Info

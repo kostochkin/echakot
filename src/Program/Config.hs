@@ -10,9 +10,9 @@ import Language.Config
 import Prelude hiding (lookup, init)
 
 
-initLoggingConfig :: (Show a, Read c) => ConfigLang String c (IO (Logger IO a ()))
+initLoggingConfig :: (Show a, Show c, Read c) => ConfigLang String c (IO (Logger IO a ()))
 initLoggingConfig = do
-    c <- init "Fetch logging config"
+    c <- init "Logging"
     ls <- lookup c "loggers"
     ls' <- mapM readLogger ls
     return $ fmap joinLoggers $ sequence ls'
@@ -30,9 +30,9 @@ readLogger c = do
         _ -> do
             returnConfig $ return $ loggerFromString (return . const ()) "None"
 
-readAppConfig :: (Read c) => ConfigLang String c (IO (App Int StdioMessenger))
+readAppConfig :: (Show c, Read c) => ConfigLang String c (IO (App Int StdioMessenger))
 readAppConfig = do
-    c <- init "Read the application configuration"
+    c <- init "Application"
     bg <- lookup c "botGeneral"
     i <- lookupDefault bg "repeats" 1
     rm <- lookupString bg "repeatsMessage" 
