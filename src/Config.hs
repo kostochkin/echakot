@@ -1,36 +1,20 @@
-module Config (
-      logConfig
-    , appConfig
-    , appState
-    , Config.Logging.logLevelString
-    , logger
-    ) where
+module Config where
 
-import Config.App
-import Config.Logging
-import Config.Messenger.StdIO
-import qualified Interpreter.IO as IIO
-import Control.Concurrent.MVar
+loggers :: [[(String, String)]]
+loggers = [ [("type", "stdio"),("logLevel", "None")]
+          , [("type", "file"),("logLevel", "Debug"),("filename", "echobot.log")]]
 
+messengerC :: [(String, String)]
+messengerC = [ ("type", "stdio1")
+             , ("showingKeyboardMessage", "Please, enter one of the following commands to modify repeats")]
 
-logConfig :: (Show a) => IO (LoggingConfig IO a ())
-logConfig = do
-    putStrLn "Please, enter logLevel [None|Error|Info|Debug] (default Info): "
-    l <- getLine
-    let ioLogger = IIO.defaultLogger Nothing l
-    return $ newLoggingConfig ioLogger l
+configApp :: [(String, String)]
+configApp = [("loggers", show loggers), ("messenger", show messengerC), ("botGeneral", show botGeneral)]
 
+botGeneral :: [(String, String)]
+botGeneral = [ ("repeats", "1")
+             , ("repeatsMessage"
+             , "Current repeats")
+             , ("helpMessage", "Hi, I'm an echo bot. My name is Echakot. I know these commands: /repeat, /help. Do you know that?")]
 
-appConfig :: IO (App Int ())
-appConfig = do
-    let help = "There is a useless help message"
-    let repeats = "Current repeats: "
-    let kbd = [1..5]
-    return $ newMessenger help repeats kbd
-
-appState :: IO (MVar Int)
-appState = do
-    putStrLn "Please, enter number of repeats (default 1): "
-    s <- getLine
-    newMessengerState s
 

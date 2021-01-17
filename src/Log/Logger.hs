@@ -6,6 +6,7 @@ module Log.Logger (
     , LoggerV
     , loggerFromString
     , runLogger
+    , currentLogLevel
     , joinLoggers
     , inlineLogInfo
     , inlineLogError
@@ -35,7 +36,7 @@ import Log.Message (
 
 data Logger m a b = Logger {
       handler :: LogMessage a -> m b
-    , currentLogLevel :: LogLevel
+    , currentLogLevel' :: LogLevel
 } deriving (Functor)
 
 data LoggerF m a b c = LoggerF (LogMessage (a -> b)) (Logger m b c)
@@ -44,10 +45,12 @@ data LoggerV m a b = LoggerV (LogMessage a) (Logger m a b)
 
 data LoggedA m a b c =  LoggedA (m a) (LoggerF m a b c)
 
+currentLogLevel :: Logger m a b -> String
+currentLogLevel = show . currentLogLevel'
 
 joinLoggers :: (Monad m, Monoid b) => [Logger m a b] -> Logger m a b
 joinLoggers xs = Logger { handler = \m -> handle m xs
-                        , currentLogLevel = minimum $ map currentLogLevel xs} where
+                        , currentLogLevel' = maximum $ map currentLogLevel' xs} where
     handle _ [] = return mempty
     handle m (l:ls) = m |> l *>> handle m ls
 
@@ -110,5 +113,5 @@ logMITM before after l lm = maybe (before >>= after) k' (bounce l lm) where
         after x 
 
 bounce :: Logger m a c -> LogMessage b -> Maybe (LogMessage b)
-bounce l m = bounceMessage (currentLogLevel l) m
+bounce l m = bounceMessage (currentLogLevel' l) m
 

@@ -1,4 +1,4 @@
-module Bot.FsdEcho (
+module Program.FsdEchoBot (
         botStep
     ) where
 
@@ -13,8 +13,8 @@ import Language.Bot (
     , setRepeats
     , getCurrentRepeats
     , echoMessage 
+    , runTimes
     )
-import Control.Monad ( forM_ )
 
 botStep :: (Integral i) => BotApi b i ()
 botStep = do
@@ -33,6 +33,5 @@ botAction TellRepeat       = const $ tellCurrentRepeats >> showKeyboard
 botAction (ModifyRepeat i) = const $ setRepeats i
 botAction Echo             = \m -> do
     i <- getCurrentRepeats
-    forM_ (replicate (fromIntegral i) m) echoMessage
-    return ()
+    runTimes (fromIntegral i) (echoMessage m)
 

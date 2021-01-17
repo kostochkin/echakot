@@ -9,6 +9,7 @@ module Language.Bot (
                 , SelectAction
                 , ShowKeyboard
                 , SetRepeats
+                , RunTimes
                 , TellCurrentRepeats
                 , GetCurrentRepeats
                 , BotLog
@@ -19,6 +20,7 @@ module Language.Bot (
         , selectAction
         , showKeyboard
         , setRepeats
+        , runTimes
         , tellCurrentRepeats
         , getCurrentRepeats
         , botLog
@@ -39,6 +41,7 @@ data BotApiF b i a = GetMessages ([b] -> a)
                    | ShowKeyboard a
                    | BotLog (LogMessage String) a
                    | SetRepeats i a
+                   | RunTimes i (BotApi b i ()) a
                    deriving (Functor)
 
 type BotApi b i = Free (BotApiF b i)
@@ -57,6 +60,9 @@ showKeyboard = liftF $ ShowKeyboard ()
 
 setRepeats :: i -> BotApi b i ()
 setRepeats i = liftF $ SetRepeats i ()
+
+runTimes :: i -> BotApi b i () -> BotApi b i ()
+runTimes i p = liftF $ RunTimes i p ()
 
 tellCurrentRepeats :: BotApi b i ()
 tellCurrentRepeats = liftF $ TellCurrentRepeats ()

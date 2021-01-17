@@ -24,6 +24,9 @@ dependencies:
 - mtl == 2.2.2
 - containers
 - free == 5.1.3
+- split
+- time
+- aeson
 
 library:
   source-dirs: src

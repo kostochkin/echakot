@@ -1,6 +1,8 @@
 module Config.Messenger.StdIO (
       newMessenger
     , newMessengerState
+    , StdioMessenger
+    , state
     ) where
 
 import Config.App ( 
@@ -11,11 +13,17 @@ import Control.Concurrent.MVar (
       MVar
     , newMVar
     )
-import Text.Read ( readMaybe )
+import Interpreter.Actions ( repeatsMaybe )
 
-newMessenger :: String -> String -> [Int] -> App Int ()
-newMessenger s1 s2 xs = newApp () s1 s2 [(x, show x) | x <- xs]
+newtype StdioMessenger = StdioMessenger { state :: MVar Int }
 
-newMessengerState :: String -> IO (MVar Int)
-newMessengerState = newMVar . maybe 1 id . readMaybe
+newMessenger :: String -> String -> String -> [Int] -> Int -> IO (App Int StdioMessenger)
+newMessenger kbdm hm rm kbd i = do
+    s <- newMessengerState kbd i
+    return $ newApp (StdioMessenger s) hm rm kbdm [(x, show x) | x <- kbd]
+
+    
+newMessengerState :: [Int] -> Int -> IO (MVar Int)
+newMessengerState []  = newMessengerState [1]
+newMessengerState kbd = newMVar . maybe (head kbd) id . repeatsMaybe kbd
 

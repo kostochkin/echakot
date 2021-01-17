@@ -12,7 +12,6 @@ import Log.Message (
 import Log.Logger (
       Logger
     , loggerFromString
-    , inlineLogInfo
     , inlineLogInfoV
     , inlineLogDebugV
     , (*>>)
@@ -32,6 +31,7 @@ import Language.Bot (
     , getCurrentRepeats
     , echoMessage 
     , botLog
+    , runTimes
     )
 import Control.Monad.Free ( Free(Pure, Free) )
 
@@ -44,7 +44,7 @@ addDefaultLogging :: String -> BotLang () -> BotLang ()
 addDefaultLogging = addLogging . defaultLogger Nothing
 
 addLogging :: Logger BotLang String () -> BotLang () -> BotLang ()
-addLogging l f@(Pure x) = inlineLogInfo ("Step finished: " ++ show x) l *>> f
+addLogging _ f@(Pure _) = f
 addLogging l (Free b)   = maybe (free b) (\m -> m |> l *>> free b) $ maybeMessage b where
     free (EchoMessage str g)    = echoMessage str >> addLogging l g
     free (GetMessages g)        = getMessages >>=* inlineLogInfoV (show' . length) l *>>= addLogging l . g
@@ -55,6 +55,7 @@ addLogging l (Free b)   = maybe (free b) (\m -> m |> l *>> free b) $ maybeMessag
     free (TellCurrentRepeats g) = tellCurrentRepeats >> addLogging l g
     free (ShowHelp g)           = showHelp >> addLogging l g
     free (BotLog s g)           = botLog s >> addLogging l g
+    free (RunTimes i p g)       = runTimes i (addLogging l p) >> addLogging l g
     got w x = "Got " ++ w ++ ": " ++ show x
     show' i = "Got " ++ show i ++ " message" ++ (if i == 1 then "" else "s")
 
@@ -68,4 +69,5 @@ maybeMessage (SelectAction b _)     = Just $ messageDebug $ "Selecting action fo
 maybeMessage (TellCurrentRepeats _) = Just $ messageDebug "Telling current repeats"
 maybeMessage (ShowKeyboard _)       = Just $ messageDebug "Showing the keyboard"
 maybeMessage (SetRepeats i _)       = Just $ messageDebug $ "Setting repeats to " ++ show i
+maybeMessage (RunTimes i _ _)       = Just $ messageDebug $ "Running " ++ show i ++ " times"
 

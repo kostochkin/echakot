@@ -10,6 +10,7 @@ module Language.IO (
                 , ReturnIO
                 , RunIO
                 , RawLog
+                , Replicate
                 )
             , getIOLine
             , putIOLine
@@ -19,9 +20,11 @@ module Language.IO (
             , returnIO
             , rawLog
             , ioLog
+            , replicate
     ) where
 
---import Prelude hiding (log)
+
+import Prelude hiding (replicate)
 import Log.Message ( LogMessage )
 import Control.Monad.Free ( Free, liftF )
 
@@ -29,6 +32,7 @@ data IOApiF b s a = GetIOLine (b -> a)
                   | PutIOLine b a
                   | GetState (s -> a)
                   | PutState s a
+                  | Replicate Int (IOApi b s ()) a
                   | ReturnIO (IO s) (s -> a)
                   | RunIO (IO ()) a
                   | RawLog (LogMessage String) a
@@ -61,4 +65,7 @@ getState = liftF $ GetState id
 
 putState :: s -> IOApi b s ()
 putState s = liftF $ PutState s ()
+
+replicate :: Int -> IOApi b s () -> IOApi b s ()
+replicate i p = liftF $ Replicate i p ()
 
