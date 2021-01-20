@@ -24,21 +24,20 @@ readLogger c = do
     let lggr = flip loggerFromString ll
     case t of
         "stdio" -> returnConfig $ return $ lggr print
-        "file" -> do
+        "file"  -> do
             fn <- lookupString c "filename"
             returnConfig $ fmap lggr $ initFileLogger fn
-        _ -> do
-            returnConfig $ return $ loggerFromString (return . const ()) "None"
+        x       -> failConfig $ "Unknown logger type: " ++ show x
 
 readAppConfig :: (Show c, Read c) => ConfigLang String c (IO (App Int StdioMessenger))
 readAppConfig = do
     c <- init "Application"
     bg <- lookup c "botGeneral"
-    i <- lookupDefault bg "repeats" 1
+    let kbd = [1..5]
+    i <- withDefault 1 (lookup bg "repeats" >>= validate (`elem` kbd))
     rm <- lookupString bg "repeatsMessage" 
     hm <- lookupString bg "helpMessage" 
     mc <- lookup c "messenger"
-    let kbd = [1..5]
     appC <- getAppConstructor mc
     returnConfig $ appC hm rm kbd i
 

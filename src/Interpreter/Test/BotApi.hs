@@ -1,4 +1,4 @@
-module Interpreter.BotApiTest ( interpret ) where
+module Interpreter.Test.BotApi ( interpret ) where
 
 import Language.Bot (
       BotApi
