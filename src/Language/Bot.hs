@@ -1,48 +1,45 @@
 {-# LANGUAGE DeriveFunctor #-}
 
-module Language.Bot (
-          Action (Echo, Help, TellRepeat, ModifyRepeat)
-        , BotApi
-        , BotApiF (
-                  EchoMessage
-                , GetMessages
-                , SelectAction
-                , ShowKeyboard
-                , SetRepeats
-                , RunTimes
-                , TellCurrentRepeats
-                , GetCurrentRepeats
-                , BotLog
-                , ShowHelp
-            )
-        , echoMessage
-        , getMessages
-        , selectAction
-        , showKeyboard
-        , setRepeats
-        , runTimes
-        , tellCurrentRepeats
-        , getCurrentRepeats
-        , botLog
-        , showHelp
-        ) where
+module Language.Bot
+  ( Action(Echo, Help, TellRepeat, ModifyRepeat)
+  , BotApi
+  , BotApiF(EchoMessage, GetMessages, SelectAction, ShowKeyboard,
+        SetRepeats, RunTimes, TellCurrentRepeats, GetCurrentRepeats,
+        BotLog, ShowHelp)
+  , echoMessage
+  , getMessages
+  , selectAction
+  , showKeyboard
+  , setRepeats
+  , runTimes
+  , tellCurrentRepeats
+  , getCurrentRepeats
+  , botLog
+  , showHelp
+  ) where
 
-import Log.Message ( LogMessage )
-import Control.Monad.Free ( Free, liftF )
+import Control.Monad.Free (Free, liftF)
+import Log.Message (LogMessage)
 
-data Action i = Echo | Help | TellRepeat | ModifyRepeat i deriving Show
+data Action i
+  = Echo
+  | Help
+  | TellRepeat
+  | ModifyRepeat i
+  deriving (Show)
 
-data BotApiF b i a = GetMessages ([b] -> a)
-                   | GetCurrentRepeats (i -> a)
-                   | ShowHelp a
-                   | EchoMessage b a 
-                   | SelectAction b (Action i -> a)
-                   | TellCurrentRepeats a
-                   | ShowKeyboard a
-                   | BotLog (LogMessage String) a
-                   | SetRepeats i a
-                   | RunTimes i (BotApi b i ()) a
-                   deriving (Functor)
+data BotApiF b i a
+  = GetMessages ([b] -> a)
+  | GetCurrentRepeats (i -> a)
+  | ShowHelp a
+  | EchoMessage b a
+  | SelectAction b (Action i -> a)
+  | TellCurrentRepeats a
+  | ShowKeyboard a
+  | BotLog (LogMessage String) a
+  | SetRepeats i a
+  | RunTimes i (BotApi b i ()) a
+  deriving (Functor)
 
 type BotApi b i = Free (BotApiF b i)
 
@@ -50,7 +47,7 @@ echoMessage :: b -> BotApi b i ()
 echoMessage b = liftF $ EchoMessage b ()
 
 getMessages :: BotApi b i [b]
-getMessages = liftF $ GetMessages id 
+getMessages = liftF $ GetMessages id
 
 selectAction :: b -> BotApi b i (Action i)
 selectAction b = liftF $ SelectAction b id
@@ -75,4 +72,3 @@ botLog m = liftF $ BotLog (fmap ("Bot: " ++) m) ()
 
 showHelp :: BotApi b i ()
 showHelp = liftF $ ShowHelp ()
-

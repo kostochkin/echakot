@@ -1,23 +1,23 @@
 {-# LANGUAGE ExistentialQuantification #-}
 
-module Config.App (
-      App
-    , newApp
-    , helpReply
-    , repeatReply
-    , keyboardMessage
-    , keyboard
-    , messenger
-    ) where
+module Config.App
+  ( App
+  , newApp
+  , helpReply
+  , repeatReply
+  , keyboardMessage
+  , keyboard
+  , messenger
+  ) where
 
-
-data App i a = App {
-      messenger'   :: a
+data App i a =
+  App
+    { messenger' :: a
     , helpReply' :: String
     , repeatReply' :: String
     , keyboardMessage' :: String
-    , keyboard'    :: [(i, String)]
-    }   
+    , keyboard' :: [(i, String)]
+    }
 
 newApp :: a -> String -> String -> String -> [(i, String)] -> App i a
 newApp = App
@@ -36,4 +36,3 @@ messenger = messenger'
 
 keyboardMessage :: App i a -> String
 keyboardMessage = keyboardMessage'
-

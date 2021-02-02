@@ -1,19 +1,20 @@
-module Config.Logging (
-      newLoggingConfig
-    , LoggingConfig
-    , logger
-    , logLevelString
-    ) where
+module Config.Logging
+  ( newLoggingConfig
+  , LoggingConfig
+  , logger
+  , logLevelString
+  ) where
 
-import Log.Logger ( Logger )
+import Log.Logger (Logger)
 
-data LoggingConfig m a b = LoggingConfig {
-      logger' :: Logger m a b
+data LoggingConfig m a b =
+  LoggingConfig
+    { logger' :: Logger m a b
     , logLevel' :: String
     }
 
 instance Show (LoggingConfig m a b) where
-    show = logLevel'
+  show = logLevel'
 
 logger :: LoggingConfig m a b -> Logger m a b
 logger = logger'
@@ -21,6 +22,5 @@ logger = logger'
 logLevelString :: LoggingConfig m a b -> String
 logLevelString = logLevel'
 
-newLoggingConfig :: Logger m a b -> String -> LoggingConfig m a b 
+newLoggingConfig :: Logger m a b -> String -> LoggingConfig m a b
 newLoggingConfig = LoggingConfig
-

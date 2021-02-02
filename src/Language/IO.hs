@@ -1,46 +1,36 @@
 {-# LANGUAGE DeriveFunctor #-}
 
-module Language.IO (
-              IOApi
-            , IOApiF (
-                  GetIOLine
-                , PutIOLine
-                , GetState
-                , PutState
-                , ReturnIO
-                , RunIO
-                , RawLog
-                , Replicate
-                )
-            , getIOLine
-            , putIOLine
-            , getState
-            , putState
-            , runIO
-            , returnIO
-            , rawLog
-            , ioLog
-            , replicate
-    ) where
+module Language.IO
+  ( IOApi
+  , IOApiF(GetIOLine, PutIOLine, GetState, PutState, ReturnIO, RunIO,
+       RawLog, Replicate)
+  , getIOLine
+  , putIOLine
+  , getState
+  , putState
+  , runIO
+  , returnIO
+  , rawLog
+  , ioLog
+  , replicate
+  ) where
 
-
+import Control.Monad.Free (Free, liftF)
+import Log.Message (LogMessage)
 import Prelude hiding (replicate)
-import Log.Message ( LogMessage )
-import Control.Monad.Free ( Free, liftF )
 
-data IOApiF b s a = GetIOLine (b -> a)
-                  | PutIOLine b a
-                  | GetState (s -> a)
-                  | PutState s a
-                  | Replicate Int (IOApi b s ()) a
-                  | ReturnIO (IO s) (s -> a)
-                  | RunIO (IO ()) a
-                  | RawLog (LogMessage String) a
-                  deriving (Functor)
-
+data IOApiF b s a
+  = GetIOLine (b -> a)
+  | PutIOLine b a
+  | GetState (s -> a)
+  | PutState s a
+  | Replicate Int (IOApi b s ()) a
+  | ReturnIO (IO s) (s -> a)
+  | RunIO (IO ()) a
+  | RawLog (LogMessage String) a
+  deriving (Functor)
 
 type IOApi b s = Free (IOApiF b s)
-
 
 getIOLine :: IOApi b s b
 getIOLine = liftF $ GetIOLine id
@@ -60,7 +50,7 @@ runIO io = liftF $ RunIO io ()
 rawLog :: LogMessage String -> IOApi b s ()
 rawLog s = liftF $ RawLog s ()
 
-getState :: IOApi b s s 
+getState :: IOApi b s s
 getState = liftF $ GetState id
 
 putState :: s -> IOApi b s ()
@@ -68,4 +58,3 @@ putState s = liftF $ PutState s ()
 
 replicate :: Int -> IOApi b s () -> IOApi b s ()
 replicate i p = liftF $ Replicate i p ()
-

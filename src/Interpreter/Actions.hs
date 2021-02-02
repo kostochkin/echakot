@@ -1,41 +1,31 @@
-module Interpreter.Actions (
-      strToAction
-    , repeatsMaybe
-    , TimeTagged
-    , toTimeTagged    
-    ) where
+module Interpreter.Actions
+  ( strToAction
+  , repeatsMaybe
+  , TimeTagged
+  , toTimeTagged
+  ) where
 
-import Language.Bot ( 
-      Action(
-          Help
-        , TellRepeat
-        , ModifyRepeat
-        , Echo
-        )
-    )
-import Text.Read ( readMaybe )
-import Control.Monad ( guard )
-import Data.Time.Clock (
-      getCurrentTime
-    , UTCTime
-    )
+import Control.Monad (guard)
+import Data.Time.Clock (UTCTime, getCurrentTime)
+import Language.Bot (Action(Echo, Help, ModifyRepeat, TellRepeat))
+import Text.Read (readMaybe)
 
-data TimeTagged = TimeTagged {
-      time :: UTCTime
+data TimeTagged =
+  TimeTagged
+    { time :: UTCTime
     , body :: String
     }
 
 instance Show TimeTagged where
-    show x = "[" ++ show (time x) ++ "] " ++ body x
-
+  show x = "[" ++ show (time x) ++ "] " ++ body x
 
 strToAction :: (Read i, Eq i) => String -> [i] -> Action i
-strToAction s k = case words s of
-                    ["/help"]       -> Help
-                    ["/repeat"]     -> TellRepeat
-                    ["/repeat", si] -> maybe Echo ModifyRepeat $ readRepeatsMaybe k si
-                    _               -> Echo
-
+strToAction s k =
+  case words s of
+    ["/help"] -> Help
+    ["/repeat"] -> TellRepeat
+    ["/repeat", si] -> maybe Echo ModifyRepeat $ readRepeatsMaybe k si
+    _ -> Echo
 
 repeatsMaybe :: (Eq i) => [i] -> i -> Maybe i
 repeatsMaybe k i = guard (i `elem` k) >> return i
@@ -45,6 +35,5 @@ readRepeatsMaybe k s = readMaybe s >>= repeatsMaybe k
 
 toTimeTagged :: IO (String -> TimeTagged)
 toTimeTagged = do
-    t <- getCurrentTime
-    return $ \s -> TimeTagged { time = t, body = s }
-
+  t <- getCurrentTime
+  return $ \s -> TimeTagged {time = t, body = s}

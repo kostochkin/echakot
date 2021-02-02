@@ -27,6 +27,7 @@ dependencies:
 - split
 - time
 - aeson
+- text
 
 library:
   source-dirs: src
