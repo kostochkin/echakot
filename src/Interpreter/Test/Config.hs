@@ -12,7 +12,7 @@ import Language.Config
   , ConfigLangF(ConfigLog, FailConfig, Init, Lookup, Validate, WithDefault)
   , configLog
   , failConfig
-  , Parseable
+  , Parsable
   , from
   , Semiredis (Key, Val)
   , dbLookup
@@ -30,10 +30,10 @@ instance Semiredis LTS where
     type Val LTS = String
     dbLookup (LTS x) = flip lookup x
 
-instance Parseable String [LTS] where
+instance Parsable String [LTS] where
     from = fmap (fmap LTS) . readMaybe
 
-instance Parseable String LTS where
+instance Parsable String LTS where
     from = fmap LTS . readMaybe
 
 interpret :: [(String, String)] -> ConfigLang LTS a -> ([LogMessage String], Either String a)

@@ -15,7 +15,7 @@ import Language.Config
   ( ConfigLang
   , ConfigLangF(ConfigLog, FailConfig, Init, Lookup, Validate, WithDefault)
   , configLog
-  , Parseable
+  , Parsable
   , from
   , Semiredis
   , Key
@@ -39,15 +39,15 @@ instance Semiredis JsonVal where
     dbLookup (JsonVal (Object o)) k = fmap JsonVal $ parseMaybe (.: k) o
     dbLookup _ _ = Nothing
 
-instance Parseable JsonVal String where
+instance Parsable JsonVal String where
     from (JsonVal (String s)) = Just $ convertText s
     from _ = Nothing
 
-instance Parseable JsonVal Int where
+instance Parsable JsonVal Int where
     from (JsonVal (Number n)) = toBoundedInteger n
     from _ = Nothing
 
-instance Parseable JsonVal [JsonVal] where
+instance Parsable JsonVal [JsonVal] where
     from (JsonVal (Array os)) = Just $ Prelude.foldr ((:) . JsonVal) [] os
     from _ = Nothing
 

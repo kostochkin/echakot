@@ -3,7 +3,6 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE OverloadedStrings #-}
 
 module Language.Config where
 
@@ -11,7 +10,7 @@ import Control.Monad.Free (Free(Pure), liftF)
 import Log.Message (LogMessage)
 import Text.Read (readMaybe)
 
-class Parseable a b where
+class Parsable a b where
     from :: a -> Maybe b
 
 class Semiredis a where
@@ -19,19 +18,19 @@ class Semiredis a where
     type Val a
     dbLookup :: a -> Key a -> Maybe (Val a)
 
-instance Parseable String Int where
+instance Parsable String Int where
     from = readMaybe
 
-instance Parseable a a where
+instance Parsable a a where
     from = Just
 
 data ConfigLangF c a where
     Init :: String -> (c -> a) -> ConfigLangF c a
-    Lookup :: (Semiredis c, Parseable (Val c) b, Show b, Show (Val c)) => c -> String -> (b -> a) -> ConfigLangF c a
-    WithDefault :: (Semiredis c, Parseable (Val c) b, Show b) => b -> (ConfigLang c b) -> (b -> a) -> ConfigLangF c a
+    Lookup :: (Semiredis c, Parsable (Val c) b, Show b, Show (Val c)) => c -> String -> (b -> a) -> ConfigLangF c a
+    WithDefault :: (Semiredis c, Parsable (Val c) b, Show b) => b -> (ConfigLang c b) -> (b -> a) -> ConfigLangF c a
     Validate :: (Show b) => (b -> Bool) -> b -> (b -> a) -> ConfigLangF c a
     FailConfig :: String -> (b -> a) -> ConfigLangF c a
-    ConfigLog :: (LogMessage String) -> a -> ConfigLangF c a
+    ConfigLog :: LogMessage String -> a -> ConfigLangF c a
     
 instance Functor (ConfigLangF c) where
   fmap f (Init s g) = Init s (fmap f g)
@@ -46,10 +45,10 @@ type ConfigLang c = Free (ConfigLangF c)
 init :: String -> ConfigLang c c
 init s = liftF $ Init s id
 
-lookup :: (Semiredis c, Parseable (Val c) b, Show (Val c), Show b) => c -> String -> ConfigLang c b
+lookup :: (Semiredis c, Parsable (Val c) b, Show (Val c), Show b) => c -> String -> ConfigLang c b
 lookup c k = liftF $ Lookup c k id
 
-withDefault :: (Semiredis c, Parseable (Val c) b, Show b) => b -> ConfigLang c b -> ConfigLang c b
+withDefault :: (Semiredis c, Parsable (Val c) b, Show b) => b -> ConfigLang c b -> ConfigLang c b
 withDefault b f = liftF $ WithDefault b f id
 
 validate :: (Show b) => (b -> Bool) -> b -> ConfigLang c b

@@ -10,14 +10,14 @@ import Log.Message
 import Prelude hiding (init, lookup)
 import qualified System.IO as SIO
 
-initLoggingConfig :: (Show a, Parseable (Val c) String, Parseable (Val c) [c], Semiredis c, Show (Val c), Show c) => ConfigLang c (IO (Logger IO a ()))
+initLoggingConfig :: (Show a, Parsable (Val c) String, Parsable (Val c) [c], Semiredis c, Show (Val c), Show c) => ConfigLang c (IO (Logger IO a ()))
 initLoggingConfig = do
   c <- init "Logging"
   ls <- withDefault [] $ lookup c "loggers"
   ls' <- mapM readLogger ls
   return $ fmap joinLoggers $ sequence ls'
 
-readLogger :: (Show a, Parseable (Val c) String, Semiredis c, Show (Val c), Show c) => c -> ConfigLang c (IO (Logger IO a ()))
+readLogger :: (Show a, Parsable (Val c) String, Semiredis c, Show (Val c), Show c) => c -> ConfigLang c (IO (Logger IO a ()))
 readLogger c = do
   t <- lookup c "type"
   ll <- lookup c "logLevel"
@@ -29,7 +29,7 @@ readLogger c = do
       returnConfig $ fmap lggr $ initFileLogger fn
     x -> failConfig $ "Unknown logger type: " ++ show x
 
-readAppConfig :: (Parseable (Val c) Int, Parseable (Val c) c, Parseable (Val c) String, Semiredis c, Show (Val c), Show c) => ConfigLang c (IO (App Int StdioMessenger))
+readAppConfig :: (Parsable (Val c) Int, Parsable (Val c) c, Parsable (Val c) String, Semiredis c, Show (Val c), Show c) => ConfigLang c (IO (App Int StdioMessenger))
 readAppConfig = do
   c <- init "Application"
   bg <- lookup c "botGeneral"
@@ -44,7 +44,7 @@ readAppConfig = do
 type AppConstructor
    = String -> String -> [Int] -> Int -> IO (App Int StdioMessenger)
 
-getAppConstructor :: (Semiredis c, Parseable (Val c) String, Parseable (Val c) c, Show (Val c)) => c -> ConfigLang c AppConstructor
+getAppConstructor :: (Semiredis c, Parsable (Val c) String, Parsable (Val c) c, Show (Val c)) => c -> ConfigLang c AppConstructor
 getAppConstructor c = do
   t <- lookup c "type"
   m <- lookup c "showingKeyboardMessage"
