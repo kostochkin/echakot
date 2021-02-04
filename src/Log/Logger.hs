@@ -52,6 +52,7 @@ currentLogLevel :: Logger m a b -> String
 currentLogLevel = show . currentLogLevel'
 
 joinLoggers :: (Monad m, Monoid b) => [Logger m a b] -> Logger m a b
+joinLoggers [] = Logger (const $ return mempty) $ read "None"
 joinLoggers xs =
   Logger
     { handler = \m -> handle m xs

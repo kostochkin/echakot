@@ -3,12 +3,15 @@ module Interpreter.Actions
   , repeatsMaybe
   , TimeTagged
   , toTimeTagged
+  , timeTaggedLogger
+  , tagLogger
   ) where
 
 import Control.Monad (guard)
 import Data.Time.Clock (UTCTime, getCurrentTime)
 import Language.Bot (Action(Echo, Help, ModifyRepeat, TellRepeat))
 import Text.Read (readMaybe)
+import Log.Logger
 
 data TimeTagged =
   TimeTagged
@@ -37,3 +40,15 @@ toTimeTagged :: IO (String -> TimeTagged)
 toTimeTagged = do
   t <- getCurrentTime
   return $ \s -> TimeTagged {time = t, body = s}
+
+timeTaggedLogger :: String -> Logger IO String ()
+timeTaggedLogger l = loggerFromString print' l where
+    print' m = do
+        t <- toTimeTagged
+        print $ fmap t m
+
+tagLogger :: Logger IO TimeTagged () -> Logger IO String ()
+tagLogger l = loggerFromString print' (currentLogLevel l) where
+    print' m = do
+        t <- toTimeTagged
+        fmap t m |> l *>> return ()

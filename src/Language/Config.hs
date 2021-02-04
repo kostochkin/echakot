@@ -19,11 +19,11 @@ class Semiredis a where
     type Val a
     dbLookup :: a -> Key a -> Maybe (Val a)
 
-instance Parseable String String where
-    from = Just
-
 instance Parseable String Int where
     from = readMaybe
+
+instance Parseable a a where
+    from = Just
 
 data ConfigLangF c a where
     Init :: String -> (c -> a) -> ConfigLangF c a

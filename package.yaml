@@ -28,6 +28,9 @@ dependencies:
 - time
 - aeson
 - text
+- scientific
+- text-conversions
+- bytestring
 
 library:
   source-dirs: src

@@ -20,7 +20,10 @@ import Language.Config
 import Log.Message (LogMessage, messageError, messageWarn)
 import Text.Read (readMaybe)
 
-newtype LTS = LTS [(String, String)] deriving Show
+newtype LTS = LTS [(String, String)]
+
+instance Show LTS where
+    show (LTS x) = show x
 
 instance Semiredis LTS where
     type Key LTS = String

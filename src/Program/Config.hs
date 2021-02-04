@@ -13,7 +13,7 @@ import qualified System.IO as SIO
 initLoggingConfig :: (Show a, Parseable (Val c) String, Parseable (Val c) [c], Semiredis c, Show (Val c), Show c) => ConfigLang c (IO (Logger IO a ()))
 initLoggingConfig = do
   c <- init "Logging"
-  ls <- lookup c "loggers"
+  ls <- withDefault [] $ lookup c "loggers"
   ls' <- mapM readLogger ls
   return $ fmap joinLoggers $ sequence ls'
 
