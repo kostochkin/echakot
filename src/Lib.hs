@@ -13,7 +13,7 @@ import qualified Translator.Logger.Bot as BL
 import qualified Translator.Logger.IO as IOL
 import qualified Translator.Messenger.StdIO as TIO (translate)
 import qualified Interpreter.ConfigJson as ICJ
-import Data.Aeson (decode)
+import Data.Aeson (decode, Value)
 import Data.String (fromString)
 
 
@@ -22,19 +22,54 @@ import Interpreter.Actions
 --import qualified Interpreter.ConfigJson as CJ
 import Prelude hiding (init, lookup)
 import qualified Translator.Logger.Config as TLC
+import qualified Control.Exception as CE
+import System.Exit (exitWith, ExitCode (ExitFailure))
 
+
+veryFirstLogger :: Logger IO String ()
+veryFirstLogger = timeTaggedLogger "Warn"
+
+
+readJSONLoggingConfig :: Value -> Logger IO String () -> IO (Either String (Logger IO String ()))
+readJSONLoggingConfig v l = do
+    let lLevel = currentLogLevel l
+    el <- ICJ.interpret v l $ TLC.addDefaultLogging lLevel initLoggingConfig
+    traverse (fmap tagLogger) el
+            
+
+readJSONFile :: String -> IO (Either String Value)
+readJSONFile f = do
+    contents <- readFile f
+    let d = decode $ fromString contents
+    return $ maybe (Left "Wrong syntax") Right d
+    
+
+catchIOEither :: IO (Either String a) -> IO (Either String a)
+catchIOEither c = do
+    c `CE.catch` (\e -> return $ Left $ "IO error: " ++ show (e :: CE.IOException))
+
+
+loggedIO :: Logger IO String () -> String -> IO (Either String a) -> IO (Either String a)
+loggedIO l s io = do
+    a <- inlineLogDebug ("RunIO: " ++ s) l *>> catchIOEither io
+    case a of
+        Right x -> inlineLogDebug ("OkIO: " ++ s) l *>> return (Right x)
+        Left x -> inlineLogError (s ++ ": " ++ x) l *>> return (Left x)
+
+safeExit :: IO (Either String a) -> IO (Either String a)
+safeExit x = x >>= \e -> case e of
+    Left _  -> exitWith $ ExitFailure 1
+    Right a -> return $ Right a
+    
 
 someFunc :: IO ()
 someFunc = do
-  contents <- readFile "botconfig.json"
-  let jsconf = maybe (error "AAA") id $ decode $ fromString contents
-  let llLevel = "Error"
-  Right loggrIO <- ICJ.interpret jsconf (timeTaggedLogger llLevel) (TLC.addDefaultLogging llLevel initLoggingConfig)
-  loggr <- loggrIO
+  Right jsconf <- safeExit $ loggedIO veryFirstLogger "Read config file" $ readJSONFile "botconfig.json"
+  Right loggr <- safeExit $ loggedIO veryFirstLogger "Read logging config" $  readJSONLoggingConfig jsconf veryFirstLogger
   let l = currentLogLevel loggr
-  Right appIO <- ICJ.interpret jsconf (tagLogger loggr) (TLC.addDefaultLogging l readAppConfig)
+  Right appIO <- safeExit $ loggedIO loggr "Read app config" $ ICJ.interpret jsconf loggr (TLC.addDefaultLogging l readAppConfig)
   app <- appIO
-  IIO.interpret (messenger app) (tagLogger loggr) $
+  IIO.interpret (messenger app) loggr $
     forever $
     IOL.addDefaultLogging l $
     TIO.translate app $ BL.addDefaultLogging l B.botStep

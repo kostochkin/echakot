@@ -14,15 +14,14 @@ import Control.Monad.Free (Free(Free, Pure))
 import Language.Config
   ( ConfigLang
   , ConfigLangF(ConfigLog, FailConfig, Init, Lookup, Validate, WithDefault)
-  , configLog
   , Parsable
   , from
   , Semiredis
   , Key
   , Val
   , dbLookup
+  , failConfig
   )
-import Log.Message ( messageError )
 import Data.Scientific (toBoundedInteger)
 import Data.Text.Conversions (convertText)
 import qualified Data.ByteString.Lazy.Char8 as CH
@@ -51,20 +50,19 @@ instance Parsable JsonVal [JsonVal] where
     from (JsonVal (Array os)) = Just $ Prelude.foldr ((:) . JsonVal) [] os
     from _ = Nothing
 
-type R a = IO (Either String a)
 
-interpret :: Value -> Logger IO String () -> ConfigLang JsonVal a -> R a
+interpret :: Value -> Logger IO String () -> ConfigLang JsonVal a -> IO (Either String a)
 interpret _ _ (Pure x) = return $ Right x
 interpret c' l (Free f) = free f 
   where
     free (Init _ g) = interpret c' l (g (JsonVal c'))
-    free (Lookup c x g) = maybe (return $ Left "oops") (maybe (return $ Left "ops") (interpret c' l . g) . from) $ dbLookup c (fromString x)
+    free (Lookup c x g) = maybe (return $ Left $ "Cannot find: " ++ show x) (maybe (return $ Left $ "Can't parse: " ++ show x) (interpret c' l . g) . from) $ dbLookup c (fromString x)
     free (WithDefault b k g) = do
         e <- interpret c' l k
-        interpret c' l $ g $ case e of
-            Left _ -> b
-            Right x -> x
-    free (Validate f' a g) = if f' a then return (Left "not valid") else interpret c' l (g a)
+        case e of
+            Left s -> inlineLogWarn s l *>> interpret c' l (g b)
+            Right x -> interpret c' l (g x)
+    free (Validate f' a g) = if f' a then interpret c' l (g a) else interpret c' l (failConfig "not valid")
     free (ConfigLog m g) = m |> l *>> interpret c' l g
-    free (FailConfig s _) = interpret c' l (configLog $ messageError s) >> return (Left s)
+    free (FailConfig s _) = return (Left s)
 

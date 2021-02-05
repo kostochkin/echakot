@@ -10,6 +10,7 @@ module Log.Logger
   , joinLoggers
   , inlineLogInfo
   , inlineLogError
+  , inlineLogWarn
   , inlineLogDebug
   , inlineLogInfoV
   , inlineLogErrorV
@@ -27,6 +28,7 @@ import Log.Message
   , bounceMessage
   , defaultLogLevel
   , messageDebug
+  , messageWarn
   , messageError
   , messageInfo
   )
@@ -104,6 +106,9 @@ inlineLogInfo x l = messageInfo x |> l
 
 inlineLogDebug :: a -> Logger m a b -> LoggerV m a b
 inlineLogDebug x l = messageDebug x |> l
+
+inlineLogWarn :: a -> Logger m a b -> LoggerV m a b
+inlineLogWarn x l = messageWarn x |> l
 
 loggerFromString :: (LogMessage a -> m b) -> String -> Logger m a b
 loggerFromString k s = Logger k $ maybe defaultLogLevel id $ readMaybe s

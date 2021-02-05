@@ -60,5 +60,3 @@ initFileLogger fn = do
 fileLogger :: Show a => SIO.Handle -> LogMessage a -> IO ()
 fileLogger h m = SIO.hPrint h m >> SIO.hFlush h
 
-veryFirstLogger :: (Show a) => Logger IO a ()
-veryFirstLogger = loggerFromString print "Error"
