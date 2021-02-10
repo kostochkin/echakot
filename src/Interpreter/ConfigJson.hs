@@ -21,11 +21,13 @@ import Language.Config
   , Val
   , dbLookup
   , failConfig
+  , LoggerType(..)
   )
 import Data.Scientific (toBoundedInteger)
 import Data.Text.Conversions (convertText)
 import qualified Data.ByteString.Lazy.Char8 as CH
 import Log.Logger
+import qualified Text.Read as TR
 
 newtype JsonVal = JsonVal Value
 
@@ -48,6 +50,10 @@ instance Parsable JsonVal Int where
 
 instance Parsable JsonVal [JsonVal] where
     from (JsonVal (Array os)) = Just $ Prelude.foldr ((:) . JsonVal) [] os
+    from _ = Nothing
+
+instance Parsable JsonVal LoggerType where
+    from (JsonVal (String s)) = TR.readMaybe $ unpack s
     from _ = Nothing
 
 

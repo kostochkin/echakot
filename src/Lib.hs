@@ -19,15 +19,19 @@ import Data.String (fromString)
 
 import Interpreter.Actions
 --import qualified Interpreter.Test.Config as ITC
---import qualified Interpreter.ConfigJson as CJ
+import qualified Interpreter.ConfigJson as CJ
 import Prelude hiding (init, lookup)
 import qualified Translator.Logger.Config as TLC
 import qualified Control.Exception as CE
 import System.Exit (exitWith, ExitCode (ExitFailure))
+import qualified Interpreter.Config as SIC
 
 
 veryFirstLogger :: Logger IO String ()
 veryFirstLogger = timeTaggedLogger "Warn"
+
+veryFirstLogger' :: Logger IO String ()
+veryFirstLogger' = timeTaggedLogger "Debug"
 
 
 readJSONLoggingConfig :: Value -> Logger IO String () -> IO (Either String (Logger IO String ()))
@@ -64,7 +68,10 @@ safeExit x = x >>= \e -> case e of
 
 someFunc :: IO ()
 someFunc = do
-  Right jsconf <- safeExit $ loggedIO veryFirstLogger "Read config file" $ readJSONFile "botconfig.json"
+  let jsfile = readJSONFile "botconfig.json"
+  Right vvv <- jsfile
+  _ <- SIC.interpret (CJ.JsonVal vvv) veryFirstLogger' initLoggingConfig :: IO (Maybe (IO (Logger IO String ())))
+  Right jsconf <- safeExit $ loggedIO veryFirstLogger "Read config file" $ jsfile
   Right loggr <- safeExit $ loggedIO veryFirstLogger "Read logging config" $  readJSONLoggingConfig jsconf veryFirstLogger
   let l = currentLogLevel loggr
   Right appIO <- safeExit $ loggedIO loggr "Read app config" $ ICJ.interpret jsconf loggr (TLC.addDefaultLogging l readAppConfig)

@@ -10,6 +10,8 @@ import Control.Monad.Free (Free(Pure), liftF)
 import Log.Message (LogMessage)
 import Text.Read (readMaybe)
 
+data LoggerType = Stdio | File deriving (Read, Show)
+
 class Parsable a b where
     from :: a -> Maybe b
 
@@ -17,6 +19,7 @@ class Semiredis a where
     type Key a
     type Val a
     dbLookup :: a -> Key a -> Maybe (Val a)
+
 
 instance Parsable String Int where
     from = readMaybe

@@ -10,8 +10,8 @@ main :: IO ()
 main = do
   putStrLn ""
   testEqual botApiTest botApiInput botApiOutput "Test Bot Logic"
-  testRight readLoggerTest configApp "Test read logger from config"
-  testLeft
+  testJust readLoggerTest configApp "Test read logger from config"
+  testNothing
     readLoggerTest
     configAppLoggerFail
     "Test read logger from config must fail"
@@ -23,19 +23,11 @@ testEqual f i o s =
     then s ++ ": OK"
     else s ++ ": FAIL!"
 
-testRight :: (a -> Either b c) -> a -> String -> IO ()
-testRight f a s =
-  putStrLn $
-  case f a of
-    Right _ -> s ++ ": OK"
-    Left _ -> s ++ ": FAIL!"
+testJust :: (a -> Maybe c) -> a -> String -> IO ()
+testJust f a s = putStrLn $ maybe (s ++ ": FAIL!") (const $ s ++ ": OK") (f a)
 
-testLeft :: (a -> Either b c) -> a -> String -> IO ()
-testLeft f a s =
-  putStrLn $
-  case f a of
-    Right _ -> s ++ ": FAIL!"
-    Left _ -> s ++ ": OK"
+testNothing :: (a -> Maybe c) -> a -> String -> IO ()
+testNothing f a s = putStrLn $ maybe (s ++ ": OK!") (const $ s ++ ": FAIL") (f a)
 
 -- Bot api test data
 botApiTest = uncurry $ BAT.interpret (forever FE.botStep)
@@ -81,16 +73,16 @@ botApiOutput =
 
 -- Config test data
 loggers =
-  [ [("type", "stdio"), ("logLevel", "None")]
-  , [("type", "file"), ("logLevel", "Debug"), ("filename", "echobot-test.log")]
+  [ [("type", "Stdio"), ("logLevel", "None")]
+  , [("type", "File"), ("logLevel", "Debug"), ("filename", "echobot-test.log")]
   ]
 
 loggerFail =
-  [ [("type", "stdio"), ("logLevel", "None")]
-  , [("type", ""), ("logLevel", "Debug"), ("filename", "echobot-test-fail.log")]
+  [ [("type", "Stdio"), ("logLevel", "None")]
+  , [("type", "file"), ("logLevel", "Debug"), ("filename", "echobot-test-fail.log")]
   ]
 
-messengerC = [("type", "stdio"), ("showingKeyboardMessage", "keyboard")]
+messengerC = [("type", "Stdio"), ("showingKeyboardMessage", "keyboard")]
 
 botGeneral =
   [("repeats", "1"), ("repeatsMessage", "repeats"), ("helpMessage", "help")]
@@ -107,7 +99,6 @@ configAppLoggerFail =
   , ("botGeneral", show botGeneral)
   ]
 
-readLoggerTest ::
-     [(String, String)] -> Either String (IO (LL.Logger IO String ()))
-readLoggerTest c = snd $ BAC.interpret c PCF.initLoggingConfig
+readLoggerTest :: [(String, String)] -> Maybe (IO (LL.Logger IO String ()))
+readLoggerTest c = BAC.interpret c PCF.initLoggingConfig
 
