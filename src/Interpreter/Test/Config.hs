@@ -17,8 +17,7 @@ import Language.Config
 import Log.Logger (loggerFromString, Logger)
 import Text.Read (readMaybe)
 import Data.String
-import qualified Interpreter.Config as IC (interpret)
-import Control.Monad.Identity
+import qualified Interpreter.Config as IC (interpret, SomeException)
 
 newtype LTS = LTS [(String, String)]
 
@@ -51,10 +50,10 @@ instance Parsable LTSString String where
     from = Just . unpack
 
 
-dummyLogger :: Logger Identity String ()
+dummyLogger :: Logger (Either IC.SomeException) String ()
 dummyLogger = loggerFromString (const $ return ()) "Debug"
 
-interpret :: [(String, String)] -> ConfigLang LTS a -> Maybe a
-interpret kv p = runIdentity $ IC.interpret (LTS kv) dummyLogger p
+interpret :: [(String, String)] -> ConfigLang LTS a -> Either IC.SomeException a
+interpret kv p = IC.interpret (LTS kv) dummyLogger p
 
 

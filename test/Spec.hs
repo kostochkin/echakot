@@ -5,6 +5,7 @@ import qualified Language.Config as LCF
 import qualified Log.Logger as LL
 import qualified Program.Config as PCF
 import qualified Program.FsdEchoBot as FE
+import Control.Error.Safe
 
 main :: IO ()
 main = do
@@ -100,5 +101,5 @@ configAppLoggerFail =
   ]
 
 readLoggerTest :: [(String, String)] -> Maybe (IO (LL.Logger IO String ()))
-readLoggerTest c = BAC.interpret c PCF.initLoggingConfig
+readLoggerTest c = rightMay $ BAC.interpret c PCF.initLoggingConfig
 

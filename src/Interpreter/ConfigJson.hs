@@ -8,19 +8,15 @@ module Interpreter.ConfigJson where
 import Data.Aeson
 import Data.Aeson.Types
 import Data.Text
-import Data.String
 
-import Control.Monad.Free (Free(Free, Pure))
 import Language.Config
   ( ConfigLang
-  , ConfigLangF(ConfigLog, FailConfig, Init, Lookup, Validate, WithDefault)
   , Parsable
   , from
   , Semiredis
   , Key
   , Val
   , dbLookup
-  , failConfig
   , LoggerType(..)
   )
 import Data.Scientific (toBoundedInteger)
@@ -28,6 +24,7 @@ import Data.Text.Conversions (convertText)
 import qualified Data.ByteString.Lazy.Char8 as CH
 import Log.Logger
 import qualified Text.Read as TR
+import qualified Interpreter.Config as IC (interpret)
 
 newtype JsonVal = JsonVal Value
 
@@ -57,18 +54,6 @@ instance Parsable JsonVal LoggerType where
     from _ = Nothing
 
 
-interpret :: Value -> Logger IO String () -> ConfigLang JsonVal a -> IO (Either String a)
-interpret _ _ (Pure x) = return $ Right x
-interpret c' l (Free f) = free f 
-  where
-    free (Init _ g) = interpret c' l (g (JsonVal c'))
-    free (Lookup c x g) = maybe (return $ Left $ "Cannot find: " ++ show x) (maybe (return $ Left $ "Can't parse: " ++ show x) (interpret c' l . g) . from) $ dbLookup c (fromString x)
-    free (WithDefault b k g) = do
-        e <- interpret c' l k
-        case e of
-            Left s -> inlineLogWarn s l *>> interpret c' l (g b)
-            Right x -> interpret c' l (g x)
-    free (Validate f' a g) = if f' a then interpret c' l (g a) else interpret c' l (failConfig "not valid")
-    free (ConfigLog m g) = m |> l *>> interpret c' l g
-    free (FailConfig s _) = return (Left s)
+interpret :: Value -> Logger IO String () -> ConfigLang JsonVal a -> IO a
+interpret v l f = IC.interpret (JsonVal v) l f
 
