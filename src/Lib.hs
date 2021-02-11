@@ -31,7 +31,7 @@ veryFirstLogger :: Logger IO String ()
 veryFirstLogger = timeTaggedLogger "Warn"
 
 
-readJSONLoggingConfig :: Value -> Logger IO String () -> IO (Logger IO String ())
+readJSONLoggingConfig :: (Show a) => Value -> Logger IO String () -> IO (Logger IO a ())
 readJSONLoggingConfig v l = join $ ICJ.interpret v l initLoggingConfig
     
 
@@ -60,9 +60,10 @@ someFunc = do
   let confReaded = readJSONLoggingConfig jsconf veryFirstLogger
   loggr <- maybeFail $ loggedIO veryFirstLogger "Read logging config" $ confReaded
   let l = currentLogLevel loggr
-  appIO <- maybeFail $ loggedIO loggr "Read app config" $ ICJ.interpret jsconf loggr (TLC.addDefaultLogging l readAppConfig)
+  let tloggr = tagLogger loggr
+  appIO <- maybeFail $ loggedIO tloggr "Read app config" $ ICJ.interpret jsconf tloggr (TLC.addDefaultLogging l readAppConfig)
   app <- appIO
-  IIO.interpret (messenger app) loggr $
+  IIO.interpret (messenger app) tloggr $
     forever $
     IOL.addDefaultLogging l $
     TIO.translate app $ BL.addDefaultLogging l B.botStep
