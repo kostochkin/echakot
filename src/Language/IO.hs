@@ -2,14 +2,12 @@
 
 module Language.IO
   ( IOApi
-  , IOApiF(GetIOLine, PutIOLine, GetState, PutState, ReturnIO, RunIO,
+  , IOApiF(GetIOLine, PutIOLine, GetState, PutState,
        RawLog, Replicate)
   , getIOLine
   , putIOLine
   , getState
   , putState
-  , runIO
-  , returnIO
   , rawLog
   , ioLog
   , replicate
@@ -25,8 +23,6 @@ data IOApiF b s a
   | GetState (s -> a)
   | PutState s a
   | Replicate Int (IOApi b s ()) a
-  | ReturnIO (IO s) (s -> a)
-  | RunIO (IO ()) a
   | RawLog (LogMessage String) a
   deriving (Functor)
 
@@ -40,12 +36,6 @@ putIOLine b = liftF $ PutIOLine b ()
 
 ioLog :: LogMessage String -> IOApi b s ()
 ioLog m = liftF $ RawLog (("IO: " ++) <$> m) ()
-
-returnIO :: IO s -> IOApi b s s
-returnIO io = liftF $ ReturnIO io id
-
-runIO :: IO () -> IOApi b s ()
-runIO io = liftF $ RunIO io ()
 
 rawLog :: LogMessage String -> IOApi b s ()
 rawLog s = liftF $ RawLog s ()

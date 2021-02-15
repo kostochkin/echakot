@@ -5,6 +5,8 @@ module Lib
 import Config.App
 import Control.Monad (forever, join)
 import qualified Interpreter.IO as IIO (interpret)
+import qualified Interpreter.GenIOStdio as IGIO (interpret)
+import qualified Translator.Messenger.GenIOStdIO as TMGIO (translate)
 import Log.Logger
 --import Log.Message
 import Program.Config
@@ -63,6 +65,9 @@ someFunc = do
   let tloggr = tagLogger loggr
   appIO <- maybeFail $ loggedIO tloggr "Read app config" $ ICJ.interpret jsconf tloggr (TLC.addDefaultLogging l readAppConfig)
   app <- appIO
+  IGIO.interpret (messenger app) tloggr $
+    forever $
+    TMGIO.translate app $ BL.addDefaultLogging l B.botStep
   IIO.interpret (messenger app) tloggr $
     forever $
     IOL.addDefaultLogging l $

@@ -14,8 +14,6 @@ import Language.IO
   , putState
   , rawLog
   , replicate
-  , returnIO
-  , runIO
   )
 import Log.Logger
   ( Logger
@@ -51,14 +49,10 @@ addLogging l (Free b) =
     free (GetState g) =
       getState >>=* inlineLogDebugV gotState l *>>= addLogging l . g
     free (PutState s g) = putState s >> addLogging l g
-    free (ReturnIO io g) =
-      returnIO io >>=* inlineLogDebugV returned l *>>= addLogging l . g
-    free (RunIO io g) = runIO io >> addLogging l g
     free (RawLog s g) = rawLog s >> addLogging l g
     free (Replicate i p g) = replicate i (addLogging l p) >> addLogging l g
     gotLine y = "Got line: " ++ show y
     gotState s = "State: " ++ show s
-    returned y = "Returned value: " ++ show y
 
 maybeMessage :: (Show b, Show i) => IOApiF b i a -> Maybe (LogMessage String)
 maybeMessage (RawLog _ _) = Nothing
@@ -66,7 +60,5 @@ maybeMessage (GetIOLine _) = Just $ messageDebug "Getting line ... "
 maybeMessage (PutIOLine b _) = Just $ messageInfo $ "Writing line " ++ show b
 maybeMessage (GetState _) = Just $ messageDebug $ "Getting state"
 maybeMessage (PutState s _) = Just $ messageDebug $ "Updating state: " ++ show s
-maybeMessage (RunIO _ _) = Just $ messageDebug "Running raw IO"
-maybeMessage (ReturnIO _ _) = Just $ messageDebug "Querying raw IO"
 maybeMessage (Replicate i _ _) =
   Just $ messageDebug $ "Replicate " ++ show i ++ " times"

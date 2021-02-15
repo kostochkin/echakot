@@ -33,6 +33,7 @@ dependencies:
 - bytestring
 - exceptions
 - errors
+- http-client
 
 library:
   source-dirs: src

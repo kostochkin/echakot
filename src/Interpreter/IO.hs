@@ -27,7 +27,5 @@ interpret s l (Free bf) = free bf
     free (GetState f) = readMVar (state s) >>= interpret s l . f
     free (PutState ns f) =
       takeMVar (state s) >> putMVar (state s) ns >> interpret s l f
-    free (ReturnIO io f) = io >>= interpret s l . f
-    free (RunIO io f) = io >> interpret s l f
     free (RawLog m f) = m |> l *>> interpret s l f
     free (Replicate i p f) = replicateM_ i (interpret s l p) >> interpret s l f
